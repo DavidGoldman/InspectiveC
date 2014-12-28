@@ -78,27 +78,20 @@ uint32_t getOrigObjc_msgSend() {
         );
 }
 
-// Returns &preObjc_msgSend in r0.
-__attribute__((__naked__))
-uint32_t getPreObjc_msgSend() {
-    __asm__ volatile (
-        "mov r0, %0" :: "r"(&preObjc_msgSend)
-    );
-}
-
 // Our replacement objc_msgSeng.
 __attribute__((__naked__))
 static void replacementObjc_msgSend() {
     // Call our pre-objc_msgSend hook.
-    save() // Save r0-r3.
+    save()
     __asm__ volatile ( // Swap the args around for our call to preObjc_msgSend.
             "mov r2, r1\n"
             "mov r1, #0\n"
             "add r3, sp, #8\n"
+            "push {lr}\n" // Call preObjc_msgSend.
             "blx __Z15preObjc_msgSendP11objc_objectP10objc_classP13objc_selectorPv\n"
+            "pop {lr}\n"
         );
-    link(blx, __Z18getPreObjc_msgSendv);
-    load() // Load r0-r3.
+    load()
     // Call through to the original objc_msgSend.
     call(bx, __Z19getOrigObjc_msgSendv)
 }
