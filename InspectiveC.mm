@@ -27,7 +27,61 @@
 #include <sys/time.h>
 #include <pthread.h>
 
-static std::set<SEL> banned_;
+ #define DEFAULT_CALLSTACK_DEPTH 128
+ #define CALLSTACK_DEPTH_INCREMENT 64
+
+static pthread_key_t threadKey;
+static std::set<SEL> bannedSels;
+
+ typedef struct CallRecord_ {
+    id obj;
+    SEL _cmd;
+    uint32_t lr;
+ } CallRecord;
+
+ typedef struct ThreadCallStack_ {
+    CallRecord *stack;
+    int allocatedLength;
+    int index;
+ } ThreadCallStack;
+
+static inline ThreadCallStack * getThreadCallStack() {
+    ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
+    if (cs == NULL) {
+        cs = (ThreadCallStack *)malloc(sizeof(ThreadCallStack));
+        cs->stack = (CallRecord *)calloc(DEFAULT_CALLSTACK_DEPTH, sizeof(CallRecord));
+        cs->allocatedLength = DEFAULT_CALLSTACK_DEPTH;
+        cs->index = -1;
+        pthread_setspecific(threadKey, cs);
+    }
+    return cs;
+}
+
+static inline void pushCallRecord(id obj, SEL _cmd, uint32_t lr) {
+    ThreadCallStack *cs = getThreadCallStack();
+    int nextIndex = (++cs->index);
+    if (nextIndex >= cs->allocatedLength) {
+        cs->allocatedLength += CALLSTACK_DEPTH_INCREMENT;
+        cs->stack = (CallRecord *)realloc(cs->stack, cs->allocatedLength * sizeof(CallRecord));
+    }
+    CallRecord *newRecord = &cs->stack[nextIndex];
+    newRecord->obj = obj;
+    newRecord->_cmd = _cmd;
+    newRecord->lr = lr;
+}
+
+static inline CallRecord * popCallRecord() {
+    ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
+    return &cs->stack[cs->index--];
+}
+
+ static void destroyThreadCallStack(void *ptr) {
+    ThreadCallStack *cs = (ThreadCallStack *)ptr;
+    free(cs->stack);
+    free(cs);
+ }
+
+// Hooking magic.
 
 static void log(FILE *file, id obj, SEL _cmd) {
     if (obj) {
@@ -40,7 +94,7 @@ FILE *logFile = NULL;
 unsigned long msgCounter = 0;
 
 void preObjc_msgSend(id self, Class _class, SEL _cmd, va_list args) {
-    if (banned_.find(_cmd) != banned_.end())
+    if (bannedSels.find(_cmd) != bannedSels.end())
         return;
     if (self && logFile && ++msgCounter % 5000 == 0) {
         log(logFile, self, _cmd);
@@ -97,24 +151,26 @@ static void replacementObjc_msgSend() {
 }
 
 MSInitialize {
+    pthread_key_create(&threadKey, &destroyThreadCallStack);
+
     logFile = fopen("/tmp/inspectivec_calls.log", "a");
 
-    banned_.insert(@selector(alloc));
-    banned_.insert(@selector(autorelease));
-    banned_.insert(@selector(initialize));
-    banned_.insert(@selector(class));
-    banned_.insert(@selector(copy));
-    banned_.insert(@selector(copyWithZone:));
-    banned_.insert(@selector(dealloc));
-    banned_.insert(@selector(delegate));
-    banned_.insert(@selector(isKindOfClass:));
-    banned_.insert(@selector(lock));
-    banned_.insert(@selector(retain));
-    banned_.insert(@selector(release));
-    banned_.insert(@selector(unlock));
-    banned_.insert(@selector(UTF8String));
-    banned_.insert(@selector(count));
-    banned_.insert(@selector(doubleValue));
+    bannedSels.insert(@selector(alloc));
+    bannedSels.insert(@selector(autorelease));
+    bannedSels.insert(@selector(initialize));
+    bannedSels.insert(@selector(class));
+    bannedSels.insert(@selector(copy));
+    bannedSels.insert(@selector(copyWithZone:));
+    bannedSels.insert(@selector(dealloc));
+    bannedSels.insert(@selector(delegate));
+    bannedSels.insert(@selector(isKindOfClass:));
+    bannedSels.insert(@selector(lock));
+    bannedSels.insert(@selector(retain));
+    bannedSels.insert(@selector(release));
+    bannedSels.insert(@selector(unlock));
+    bannedSels.insert(@selector(UTF8String));
+    bannedSels.insert(@selector(count));
+    bannedSels.insert(@selector(doubleValue));
 
     MSHookFunction(&objc_msgSend, (id (*)(id, SEL, ...))&replacementObjc_msgSend, &orig_objc_msgSend);
     fprintf(logFile, "POST: <%p> <%p> <%p>\n", &objc_msgSend, &replacementObjc_msgSend, orig_objc_msgSend);
