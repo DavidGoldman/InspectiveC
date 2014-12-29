@@ -44,7 +44,7 @@ static std::set<SEL> bannedSels;
     int allocatedLength;
     int index;
  } ThreadCallStack;
-
+/*
 static inline ThreadCallStack * getThreadCallStack() {
     ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
     if (cs == NULL) {
@@ -74,7 +74,7 @@ static inline CallRecord * popCallRecord() {
     ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
     return &cs->stack[cs->index--];
 }
-
+*/
  static void destroyThreadCallStack(void *ptr) {
     ThreadCallStack *cs = (ThreadCallStack *)ptr;
     free(cs->stack);
@@ -93,12 +93,22 @@ static void log(FILE *file, id obj, SEL _cmd) {
 FILE *logFile = NULL;
 unsigned long msgCounter = 0;
 
-void preObjc_msgSend(id self, Class _class, SEL _cmd, va_list args) {
+// Called in our replacementObjc_msgSend before calling the original objc_msgSend.
+// This pushes a CallRecord to our stack, most importantly saving the lr.
+void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
     if (bannedSels.find(_cmd) != bannedSels.end())
         return;
-    if (self && logFile && ++msgCounter % 5000 == 0) {
+    if (self && logFile && ++msgCounter % 10 == 0) {
+        fprintf(logFile, "LR:%p ; SEL: %s\n", (void *)lr, sel_getName(_cmd));
         log(logFile, self, _cmd);
     }
+}
+
+// Called in our replacementObjc_msgSend after calling the original objc_msgSend.
+// This returns the lr in r0.
+uint32_t postObjc_msgSend() {
+    CallRecord *record = popCallRecord();
+    return record->lr;
 }
 
 #define call(b, value) \
@@ -139,10 +149,10 @@ static void replacementObjc_msgSend() {
     save()
     __asm__ volatile ( // Swap the args around for our call to preObjc_msgSend.
             "mov r2, r1\n"
-            "mov r1, #0\n"
+            "mov r1, lr\n"
             "add r3, sp, #8\n"
             "push {lr}\n" // Call preObjc_msgSend.
-            "blx __Z15preObjc_msgSendP11objc_objectP10objc_classP13objc_selectorPv\n"
+            "blx __Z15preObjc_msgSendP11objc_objectjP13objc_selectorPv\n"
             "pop {lr}\n"
         );
     load()
