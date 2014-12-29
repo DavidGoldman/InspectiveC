@@ -10,11 +10,74 @@
 
 #include <pthread.h>
 
+#include "hashmap.h"
+
 #define MAX_PATH_LENGTH 1024
 
 #define DEFAULT_CALLSTACK_DEPTH 128
 #define CALLSTACK_DEPTH_INCREMENT 64
 #define LOG_FREQUENCY (25 * 1000)
+
+static HashMapRef objectsSet;
+static HashMapRef classSet;
+static HashMapRef selsSet;
+static pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
+
+static int pointerEquality(void *a, void *b) {
+  uintptr_t ia = reinterpret_cast<uintptr_t>(a);
+  uintptr_t ib = reinterpret_cast<uintptr_t>(b);
+  return ia == ib;
+}
+
+static unsigned pointerHash(void *v) {
+  uintptr_t a = reinterpret_cast<uintptr_t>(v);
+  a = (a + 0x7ed55d16) + (a << 12);
+  a = (a ^ 0xc761c23c) ^ (a >> 19);
+  a = (a + 0x165667b1) + (a << 5);
+  a = (a + 0xd3a2646c) ^ (a << 9);
+  a = (a + 0xfd7046c5) + (a << 3);
+  a = (a ^ 0xb55a4f09) ^ (a >> 16);
+  return (unsigned)a;
+}
+
+#define RLOCK pthread_rwlock_rdlock(&lock)
+#define WLOCK pthread_rwlock_wrlock(&lock)
+#define UNLOCK pthread_rwlock_unlock(&lock)
+
+// Inspective C Public API.
+
+extern "C" void InspectiveC_watchObject(id obj) {
+  WLOCK;
+  HMPut(objectsSet, (void *)obj, (void *)obj);
+  UNLOCK;
+}
+extern "C" void InspectiveC_unwatchObject(id obj) {
+  WLOCK;
+  HMRemove(objectsSet, (void *)obj);
+  UNLOCK;
+}
+
+extern "C" void InspectiveC_watchInstancesOfClass(Class clazz) {
+  WLOCK;
+  HMPut(classSet, (void *)clazz, (void *)clazz);
+  UNLOCK;
+}
+extern "C" void InspectiveC_unwatchInstancesOfClass(Class clazz) {
+  WLOCK;
+  HMRemove(classSet, (void *)clazz);
+  UNLOCK;
+}
+
+extern "C" void InspectiveC_watchSelector(SEL _cmd) {
+  WLOCK;
+  HMPut(selsSet, (void *)_cmd, (void *)_cmd);
+  UNLOCK;
+}
+extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
+  WLOCK;
+  HMRemove(selsSet, (void *)_cmd);
+  UNLOCK;
+}
 
 static pthread_key_t threadKey;
 static std::set<SEL> bannedSels;
@@ -110,6 +173,12 @@ unsigned long msgCounter = 0;
 void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
   pushCallRecord(self, lr, _cmd);
 
+  if (self) {
+    //Class clazz = object_getClass(self);
+    RLOCK;
+    // TODO Check for hits.
+    UNLOCK;
+  }
   if (bannedSels.find(_cmd) != bannedSels.end())
     return;
   FILE *logFile = getThreadCallStack()->file;
@@ -167,6 +236,10 @@ static void replacementObjc_msgSend() {
 
 MSInitialize {
   pthread_key_create(&threadKey, &destroyThreadCallStack);
+
+  objectsSet = HMCreate(&pointerEquality, &pointerHash);
+  classSet = HMCreate(&pointerEquality, &pointerHash);
+  selsSet = HMCreate(&pointerEquality, &pointerHash);
 
   bannedSels.insert(@selector(alloc));
   bannedSels.insert(@selector(autorelease));

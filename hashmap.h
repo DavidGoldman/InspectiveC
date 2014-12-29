@@ -16,7 +16,7 @@ typedef void (*EntryDestructFuncT)(void *, void *);
 typedef struct HashBucket_ {
 	void *key;
 	void *value;
-	struct HashBucket *next;
+	struct HashBucket_ *next;
 } HashBucket;
 
 // HashMap structure, containing a table of HashBuckets, and the required functions.
