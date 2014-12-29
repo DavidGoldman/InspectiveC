@@ -16,12 +16,12 @@
 
 #define DEFAULT_CALLSTACK_DEPTH 128
 #define CALLSTACK_DEPTH_INCREMENT 64
-#define LOG_FREQUENCY (25 * 1000)
 
 static HashMapRef objectsSet;
 static HashMapRef classSet;
 static HashMapRef selsSet;
 static pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_key_t threadKey;
 
 static int pointerEquality(void *a, void *b) {
   uintptr_t ia = reinterpret_cast<uintptr_t>(a);
@@ -78,9 +78,6 @@ extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
   HMRemove(selsSet, (void *)_cmd);
   UNLOCK;
 }
-
-static pthread_key_t threadKey;
-static std::set<SEL> bannedSels;
 
 typedef struct CallRecord_ {
   id obj;
@@ -164,8 +161,6 @@ static void log(FILE *file, id obj, SEL _cmd) {
   }
 }
 
-unsigned long msgCounter = 0;
-
 // Hooking magic.
 
 // Called in our replacementObjc_msgSend before calling the original objc_msgSend.
@@ -174,16 +169,19 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
   pushCallRecord(self, lr, _cmd);
 
   if (self) {
-    //Class clazz = object_getClass(self);
+    Class clazz = object_getClass(self);
     RLOCK;
-    // TODO Check for hits.
+    // Critical section - check for hits.
+    int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
+    int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
+    int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
     UNLOCK;
-  }
-  if (bannedSels.find(_cmd) != bannedSels.end())
-    return;
-  FILE *logFile = getThreadCallStack()->file;
-  if (self && logFile && ++msgCounter % LOG_FREQUENCY == 0) {
-    log(logFile, self, _cmd);
+    if (isWatchedObject || isWatchedClass || isWatchedSel) {
+      FILE *logFile = getThreadCallStack()->file;
+      if (logFile) {
+        log(logFile, self, _cmd);
+      }
+    }
   }
 }
 
@@ -240,23 +238,6 @@ MSInitialize {
   objectsSet = HMCreate(&pointerEquality, &pointerHash);
   classSet = HMCreate(&pointerEquality, &pointerHash);
   selsSet = HMCreate(&pointerEquality, &pointerHash);
-
-  bannedSels.insert(@selector(alloc));
-  bannedSels.insert(@selector(autorelease));
-  bannedSels.insert(@selector(initialize));
-  bannedSels.insert(@selector(class));
-  bannedSels.insert(@selector(copy));
-  bannedSels.insert(@selector(copyWithZone:));
-  bannedSels.insert(@selector(dealloc));
-  bannedSels.insert(@selector(delegate));
-  bannedSels.insert(@selector(isKindOfClass:));
-  bannedSels.insert(@selector(lock));
-  bannedSels.insert(@selector(retain));
-  bannedSels.insert(@selector(release));
-  bannedSels.insert(@selector(unlock));
-  bannedSels.insert(@selector(UTF8String));
-  bannedSels.insert(@selector(count));
-  bannedSels.insert(@selector(doubleValue));
 
   MSHookFunction(&objc_msgSend, (id (*)(id, SEL, ...))&replacementObjc_msgSend, &orig_objc_msgSend);
 }
