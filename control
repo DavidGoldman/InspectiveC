@@ -3,7 +3,7 @@ Name: InspectiveC
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm
-Description: An awesome MobileSubstrate tweak!
+Description: objc_msgSend hook for debugging/inspection purposes.
 Maintainer: David Goldman
 Author: David Goldman
 Section: Tweaks
