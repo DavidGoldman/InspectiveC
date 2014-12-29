@@ -29,6 +29,7 @@
 
  #define DEFAULT_CALLSTACK_DEPTH 128
  #define CALLSTACK_DEPTH_INCREMENT 64
+ #define LOG_FREQUENCY (25 * 1000)
 
 static pthread_key_t threadKey;
 static std::set<SEL> bannedSels;
@@ -44,7 +45,7 @@ static std::set<SEL> bannedSels;
     int allocatedLength;
     int index;
  } ThreadCallStack;
-/*
+
 static inline ThreadCallStack * getThreadCallStack() {
     ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
     if (cs == NULL) {
@@ -57,7 +58,7 @@ static inline ThreadCallStack * getThreadCallStack() {
     return cs;
 }
 
-static inline void pushCallRecord(id obj, SEL _cmd, uint32_t lr) {
+static inline void pushCallRecord(id obj, uint32_t lr, SEL _cmd) {
     ThreadCallStack *cs = getThreadCallStack();
     int nextIndex = (++cs->index);
     if (nextIndex >= cs->allocatedLength) {
@@ -74,7 +75,7 @@ static inline CallRecord * popCallRecord() {
     ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
     return &cs->stack[cs->index--];
 }
-*/
+
  static void destroyThreadCallStack(void *ptr) {
     ThreadCallStack *cs = (ThreadCallStack *)ptr;
     free(cs->stack);
@@ -96,10 +97,11 @@ unsigned long msgCounter = 0;
 // Called in our replacementObjc_msgSend before calling the original objc_msgSend.
 // This pushes a CallRecord to our stack, most importantly saving the lr.
 void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
+    pushCallRecord(self, lr, _cmd);
+
     if (bannedSels.find(_cmd) != bannedSels.end())
         return;
-    if (self && logFile && ++msgCounter % 10 == 0) {
-        fprintf(logFile, "LR:%p ; SEL: %s\n", (void *)lr, sel_getName(_cmd));
+    if (self && logFile && ++msgCounter % LOG_FREQUENCY == 0) {
         log(logFile, self, _cmd);
     }
 }
@@ -110,27 +112,6 @@ uint32_t postObjc_msgSend() {
     CallRecord *record = popCallRecord();
     return record->lr;
 }
-
-#define call(b, value) \
-    __asm__ volatile( \
-            "push {r0, lr}\n" \
-            "blx " #value "\n" \
-            "mov r12, r0\n" \
-            "pop {r0, lr}\n" #b " r12\n" \
-        );
-
-#define save() \
-    __asm volatile ("push {r0, r1, r2, r3}\n");
-
-#define load() \
-    __asm volatile ("pop {r0, r1, r2, r3}\n");
-
-#define link(b, value) \
-    __asm volatile ("push {lr}\n"); \
-    __asm volatile ("sub sp, #4\n"); \
-    call(b, value) \
-    __asm volatile ("add sp, #4\n"); \
-    __asm volatile ("pop {lr}\n");
 
 static id (*orig_objc_msgSend)(id, SEL, ...);
 
@@ -145,19 +126,31 @@ uint32_t getOrigObjc_msgSend() {
 // Our replacement objc_msgSeng.
 __attribute__((__naked__))
 static void replacementObjc_msgSend() {
-    // Call our pre-objc_msgSend hook.
-    save()
+    // Call our preObjc_msgSend hook.
     __asm__ volatile ( // Swap the args around for our call to preObjc_msgSend.
+            "push {r0, r1, r2, r3}\n"
             "mov r2, r1\n"
             "mov r1, lr\n"
             "add r3, sp, #8\n"
-            "push {lr}\n" // Call preObjc_msgSend.
             "blx __Z15preObjc_msgSendP11objc_objectjP13objc_selectorPv\n"
-            "pop {lr}\n"
+            "pop {r0, r1, r2, r3}\n"
         );
-    load()
     // Call through to the original objc_msgSend.
-    call(bx, __Z19getOrigObjc_msgSendv)
+    __asm__ volatile (
+            "push {r0}\n"
+            "blx __Z19getOrigObjc_msgSendv\n"
+            "mov r12, r0\n"
+            "pop {r0}\n"
+            "blx r12\n"
+        );
+    // Call our postObjc_msgSend hook.
+    __asm__ volatile (
+            "push {r0-r12}\n"
+            "blx __Z16postObjc_msgSendv\n"
+            "mov lr, r0\n"
+            "pop {r0-r12}\n"
+            "bx lr\n"
+        );
 }
 
 MSInitialize {
