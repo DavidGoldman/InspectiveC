@@ -12,6 +12,8 @@
 
 #include "hashmap.h"
 
+#define MAIN_THREAD_ONLY
+
 #define MAX_PATH_LENGTH 1024
 
 #define DEFAULT_CALLSTACK_DEPTH 128
@@ -20,8 +22,11 @@
 static HashMapRef objectsSet;
 static HashMapRef classSet;
 static HashMapRef selsSet;
-static pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
 static pthread_key_t threadKey;
+
+#ifndef MAIN_THREAD_ONLY
+static pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
+#endif
 
 static int pointerEquality(void *a, void *b) {
   uintptr_t ia = reinterpret_cast<uintptr_t>(a);
@@ -45,6 +50,67 @@ static unsigned pointerHash(void *v) {
 #define UNLOCK pthread_rwlock_unlock(&lock)
 
 // Inspective C Public API.
+
+#ifdef MAIN_THREAD_ONLY
+
+extern "C" void InspectiveC_watchObject(id obj) {
+  if (pthread_main_np()) {
+    HMPut(objectsSet, (void *)obj, (void *)obj);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        HMPut(objectsSet, (void *)obj, (void *)obj);
+    });
+  }
+}
+extern "C" void InspectiveC_unwatchObject(id obj) {
+  if (pthread_main_np()) {
+    HMRemove(objectsSet, (void *)obj);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        HMRemove(objectsSet, (void *)obj);
+    });
+  }
+}
+
+extern "C" void InspectiveC_watchInstancesOfClass(Class clazz) {
+  if (pthread_main_np()) {
+    HMPut(classSet, (void *)clazz, (void *)clazz);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        HMPut(classSet, (void *)clazz, (void *)clazz);
+    });
+  }
+}
+extern "C" void InspectiveC_unwatchInstancesOfClass(Class clazz) {
+  if (pthread_main_np()) {
+    HMRemove(classSet, (void *)clazz);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        HMRemove(classSet, (void *)clazz);
+    });
+  }
+}
+
+extern "C" void InspectiveC_watchSelector(SEL _cmd) {
+  if (pthread_main_np()) {
+    HMPut(selsSet, (void *)_cmd, (void *)_cmd);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        HMPut(selsSet, (void *)_cmd, (void *)_cmd);
+    });
+  }
+}
+extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
+  if (pthread_main_np()) {
+    HMRemove(selsSet, (void *)_cmd);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        HMRemove(selsSet, (void *)_cmd);
+    });
+  }
+}
+
+#else // Multithreaded - uses rw locks.
 
 extern "C" void InspectiveC_watchObject(id obj) {
   WLOCK;
@@ -78,6 +144,8 @@ extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
   HMRemove(selsSet, (void *)_cmd);
   UNLOCK;
 }
+
+#endif
 
 typedef struct CallRecord_ {
   id obj;
@@ -121,7 +189,11 @@ static inline ThreadCallStack * getThreadCallStack() {
   ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
   if (cs == NULL) {
     cs = (ThreadCallStack *)malloc(sizeof(ThreadCallStack));
+#ifdef MAIN_THREAD_ONLY
+    cs->file = (pthread_main_np()) ? newFileForThread() : NULL;
+#else
     cs->file = newFileForThread();
+#endif
     cs->stack = (CallRecord *)calloc(DEFAULT_CALLSTACK_DEPTH, sizeof(CallRecord));
     cs->allocatedLength = DEFAULT_CALLSTACK_DEPTH;
     cs->index = -1;
@@ -168,6 +240,20 @@ static void log(FILE *file, id obj, SEL _cmd) {
 void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
   pushCallRecord(self, lr, _cmd);
 
+#ifdef MAIN_THREAD_ONLY
+  if (self && pthread_main_np()) {
+    Class clazz = object_getClass(self);
+    int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
+    int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
+    int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
+    if (isWatchedObject || isWatchedClass || isWatchedSel) {
+      FILE *logFile = getThreadCallStack()->file;
+      if (logFile) {
+        log(logFile, self, _cmd);
+      }
+    }
+  }
+#else
   if (self) {
     Class clazz = object_getClass(self);
     RLOCK;
@@ -183,6 +269,7 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
       }
     }
   }
+#endif
 }
 
 // Called in our replacementObjc_msgSend after calling the original objc_msgSend.
