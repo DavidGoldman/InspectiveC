@@ -49,7 +49,7 @@ static FILE * newFileForThread() {
   sprintf(path, "/tmp/InspectiveC/%s", exeName);
   mkdir(path, 0755);
   if (pthread_main_np()) {
-    sprintf(path, "/tmp/InspectiveC/%s/%d_tmain.log", exeName, pid);
+    sprintf(path, "/tmp/InspectiveC/%s/%d_main.log", exeName, pid);
   } else {
     mach_port_t tid = pthread_mach_thread_np(pthread_self());
     sprintf(path, "/tmp/InspectiveC/%s/%d_t%u.log", exeName, pid, tid);
@@ -61,7 +61,7 @@ static inline ThreadCallStack * getThreadCallStack() {
   ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
   if (cs == NULL) {
     cs = (ThreadCallStack *)malloc(sizeof(ThreadCallStack));
-    cs->file = (pthread_main_np()) ? newFileForThread() : NULL; // Only log on main thread atm.
+    cs->file = newFileForThread();
     cs->stack = (CallRecord *)calloc(DEFAULT_CALLSTACK_DEPTH, sizeof(CallRecord));
     cs->allocatedLength = DEFAULT_CALLSTACK_DEPTH;
     cs->index = -1;
