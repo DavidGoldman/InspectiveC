@@ -5,8 +5,12 @@
 #include <cstdio>
 
 #include <set>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <pthread.h>
+
+#define MAX_PATH_LENGTH 1024
 
 #define DEFAULT_CALLSTACK_DEPTH 128
 #define CALLSTACK_DEPTH_INCREMENT 64
@@ -22,15 +26,42 @@ typedef struct CallRecord_ {
 } CallRecord;
 
 typedef struct ThreadCallStack_ {
+  FILE *file;
   CallRecord *stack;
   int allocatedLength;
   int index;
 } ThreadCallStack;
 
+extern "C" char ***_NSGetArgv(void);
+
+static FILE * newFileForThread() {
+  const char *exeName = **_NSGetArgv();
+  if (exeName == NULL) {
+    exeName = "(NULL)";
+  } else if (const char *slash = strrchr(exeName, '/')) {
+    exeName = slash + 1;
+  }
+
+  pid_t pid = getpid();
+
+  char path[MAX_PATH_LENGTH];
+  mkdir("/tmp/InspectiveC", 0755);
+  sprintf(path, "/tmp/InspectiveC/%s", exeName);
+  mkdir(path, 0755);
+  if (pthread_main_np()) {
+    sprintf(path, "/tmp/InspectiveC/%s/%d_tmain.log", exeName, pid);
+  } else {
+    mach_port_t tid = pthread_mach_thread_np(pthread_self());
+    sprintf(path, "/tmp/InspectiveC/%s/%d_t%u.log", exeName, pid, tid);
+  }
+  return fopen(path, "a");
+}
+
 static inline ThreadCallStack * getThreadCallStack() {
   ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
   if (cs == NULL) {
     cs = (ThreadCallStack *)malloc(sizeof(ThreadCallStack));
+    cs->file = (pthread_main_np()) ? newFileForThread() : NULL; // Only log on main thread atm.
     cs->stack = (CallRecord *)calloc(DEFAULT_CALLSTACK_DEPTH, sizeof(CallRecord));
     cs->allocatedLength = DEFAULT_CALLSTACK_DEPTH;
     cs->index = -1;
@@ -70,7 +101,6 @@ static void log(FILE *file, id obj, SEL _cmd) {
   }
 }
 
-FILE *logFile = NULL;
 unsigned long msgCounter = 0;
 
 // Hooking magic.
@@ -82,6 +112,7 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
 
   if (bannedSels.find(_cmd) != bannedSels.end())
     return;
+  FILE *logFile = getThreadCallStack()->file;
   if (self && logFile && ++msgCounter % LOG_FREQUENCY == 0) {
     log(logFile, self, _cmd);
   }
@@ -136,8 +167,6 @@ static void replacementObjc_msgSend() {
 
 MSInitialize {
   pthread_key_create(&threadKey, &destroyThreadCallStack);
-
-  logFile = fopen("/tmp/inspectivec_calls.log", "a");
 
   bannedSels.insert(@selector(alloc));
   bannedSels.insert(@selector(autorelease));
