@@ -82,8 +82,6 @@ static inline CallRecord * popCallRecord() {
     free(cs);
  }
 
-// Hooking magic.
-
 static void log(FILE *file, id obj, SEL _cmd) {
     if (obj) {
         Class kind = object_getClass(obj);
@@ -93,6 +91,8 @@ static void log(FILE *file, id obj, SEL _cmd) {
 
 FILE *logFile = NULL;
 unsigned long msgCounter = 0;
+
+// Hooking magic.
 
 // Called in our replacementObjc_msgSend before calling the original objc_msgSend.
 // This pushes a CallRecord to our stack, most importantly saving the lr.
@@ -145,10 +145,10 @@ static void replacementObjc_msgSend() {
         );
     // Call our postObjc_msgSend hook.
     __asm__ volatile (
-            "push {r0-r12}\n"
+            "push {r0-r3}\n"
             "blx __Z16postObjc_msgSendv\n"
             "mov lr, r0\n"
-            "pop {r0-r12}\n"
+            "pop {r0-r3}\n"
             "bx lr\n"
         );
 }
