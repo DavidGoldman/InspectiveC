@@ -6,6 +6,7 @@ include theos/makefiles/common.mk
 
 TWEAK_NAME = InspectiveC
 InspectiveC_FILES = hashmap.mm logging.mm InspectiveC.mm
+InspectiveC_FRAMEWORKS = UIKit
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 

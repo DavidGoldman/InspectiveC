@@ -13,11 +13,10 @@ This is **not compatible with arm64** at the moment, although I do hope to add s
 * Watch specific objects
 * Watch instances of a specific class
 * Watch specific selectors
+* Prints arguments
 
 **Hopeful Features:**
 * Hook obj_msgSend[st|fp]ret
-* Print arguments - probably will only print after a watch hit. Otherwise it would require storing
-all arguments to all Objective-C messages on our callstack - probably a bad idea.
 * More advanced filtering
 * arm64 support???
 
