@@ -19,6 +19,10 @@ extern "C" {
   void InspectiveC_watchSelector(SEL _cmd);
   void InspectiveC_unwatchSelector(SEL _cmd);
 
+  // Enables/disables logging for the current thread.
+  void InspectiveC_enableLogging();
+  void InspectiveC_disableLogging();
+
 #if __cplusplus
 }
 #endif

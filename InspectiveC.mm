@@ -162,6 +162,7 @@ typedef struct ThreadCallStack_ {
   int index;
   int numWatchHits;
   int lastPrintedIndex;
+  char isLoggingEnabled;
 } ThreadCallStack;
 
 extern "C" char ***_NSGetArgv(void);
@@ -205,9 +206,22 @@ static inline ThreadCallStack * getThreadCallStack() {
     cs->allocatedLength = DEFAULT_CALLSTACK_DEPTH;
     cs->index = cs->lastPrintedIndex = -1;
     cs->numWatchHits = 0;
+    cs->isLoggingEnabled = 1;
     pthread_setspecific(threadKey, cs);
   }
   return cs;
+}
+
+// Semi Public API - used to temporarily disable logging.
+
+extern "C" void InspectiveC_enableLogging() {
+  ThreadCallStack *cs = getThreadCallStack();
+  cs->isLoggingEnabled = 1;
+}
+
+extern "C" void InspectiveC_disableLogging() {
+  ThreadCallStack *cs = getThreadCallStack();
+  cs->isLoggingEnabled = 0;
 }
 
 static inline void pushCallRecord(id obj, uint32_t lr, SEL _cmd, ThreadCallStack *cs) {
@@ -302,7 +316,7 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
   pushCallRecord(self, lr, _cmd, cs);
 
 #ifdef MAIN_THREAD_ONLY
-  if (self && pthread_main_np()) {
+  if (self && pthread_main_np() && cs->isLoggingEnabled) {
     Class clazz = object_getClass(self);
     int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
     int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
@@ -317,7 +331,7 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
     }
   }
 #else
-  if (self) {
+  if (self && cs->isLoggingEnabled) {
     Class clazz = object_getClass(self);
     RLOCK;
     // Critical section - check for hits.
