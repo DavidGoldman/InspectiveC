@@ -246,6 +246,9 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
     int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
     int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
     int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
+    if (isWatchedObject && _cmd == @selector(dealloc)) {
+      HMRemove(objectsSet, (void *)self);
+    }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
       FILE *logFile = getThreadCallStack()->file;
       if (logFile) {
@@ -262,6 +265,11 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
     int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
     int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
     UNLOCK;
+    if (isWatchedObject && _cmd == @selector(dealloc)) {
+      WLOCK;
+      HMRemove(objectsSet, (void *)self);
+      UNLOCK;
+    }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
       FILE *logFile = getThreadCallStack()->file;
       if (logFile) {
