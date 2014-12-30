@@ -254,33 +254,34 @@ static void destroyThreadCallStack(void *ptr) {
 
 static inline void log(FILE *file, id obj, SEL _cmd, char *spaces) {
   Class kind = object_getClass(obj);
-  fprintf(file, "%s%s<%s@%p>\t%s\n", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
+  bool isMetaClass = class_isMetaClass(kind);
+  if (isMetaClass) {
+    fprintf(file, "%s%s+|%s %s|\n", spaces, spaces, class_getName(kind), sel_getName(_cmd));
+  } else {
+    fprintf(file, "%s%s-|%s %s| @<%p>\n", spaces, spaces, class_getName(kind), sel_getName(_cmd), (void *)obj);
+  }
 }
 
 static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, va_list &args) {
   Class kind = object_getClass(obj);
   bool isMetaClass = class_isMetaClass(kind);
-  const char *selName = sel_getName(_cmd);
   Method method = class_getInstanceMethod(kind, _cmd);
 
   if (method) {
-    fprintf(file, "**%s%s<%s@%p> %c|%s|", spaces, spaces, class_getName(kind), (void *)obj,
-        (isMetaClass) ? '+' : '-', selName);
-    cs->isLoggingEnabled = 0;
-    NSUInteger index = 2;
-    NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:method_getTypeEncoding(method)];
-    for (const char *str = selName; true; ++str) {
-      char cur = *str;
-      if (cur == '\0') {
-        break;
-      }
-      if (cur == ':') {
-        const char *type = [signature getArgumentTypeAtIndex:index++];
-        fprintf(file, " ");
-        logArgument(file, type, args);
-      }
+    if (isMetaClass) {
+      fprintf(file, "%s%s***+|%s %s|", spaces, spaces, class_getName(kind), sel_getName(_cmd));
+    } else {
+      fprintf(file, "%s%s***-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
     }
-    fprintf(file, "**\n");
+    cs->isLoggingEnabled = 0;
+    NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:method_getTypeEncoding(method)];
+    const NSUInteger numberOfArguments = [signature numberOfArguments];
+    for (NSUInteger index = 2; index < numberOfArguments; ++index) {
+      const char *type = [signature getArgumentTypeAtIndex:index];
+      fprintf(file, " ");
+      logArgument(file, type, args);
+    }
+    fprintf(file, "***\n");
     cs->isLoggingEnabled = 1;
   }
 }
@@ -294,8 +295,11 @@ static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL
     cs->isLoggingEnabled = 0;
     // NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:method_getTypeEncoding(method)];
     cs->isLoggingEnabled = 1;
-    fprintf(file, "%s%s<%s@%p> %c|%s|\n", spaces, spaces, class_getName(kind), (void *)obj,
-        (isMetaClass) ? '+' : '-', sel_getName(_cmd));
+    if (isMetaClass) {
+      fprintf(file, "%s%s+|%s %s|\n", spaces, spaces, class_getName(kind), sel_getName(_cmd));
+    } else {
+      fprintf(file, "%s%s-|%s@<%p> %s|\n", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
+    }
   }
 }
 
