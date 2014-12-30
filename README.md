@@ -15,10 +15,15 @@ This is **not compatible with arm64** at the moment, although I do hope to add s
 * Watch specific selectors
 * Prints arguments
 
-**Hopeful Features:**
+**Hopeful Features (in no particular order):**
+* Print retvals
 * Hook obj_msgSend[st|fp]ret
 * More advanced filtering
 * arm64 support???
+* Optimizations
+  * Nicer hooking
+  * Reduce redundancy
+  * Better multithreading performance
 
 **Usage:**
 
