@@ -10,6 +10,7 @@
 #include <pthread.h>
 
 #include "hashmap.h"
+#include "logging.h"
 
 // Optional - comment this out if you want to log on ALL threads (laggy due to rw-locks).
 #define MAIN_THREAD_ONLY
@@ -256,12 +257,49 @@ static inline void log(FILE *file, id obj, SEL _cmd, char *spaces) {
   fprintf(file, "%s%s<%s@%p>\t%s\n", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
 }
 
-static inline void logWatchedHit(FILE *file, id obj, SEL _cmd, char *spaces) {
+static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, va_list &args) {
   Class kind = object_getClass(obj);
-  fprintf(file, "%s%s**<%s@%p>\t%s**\n", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
+  bool isMetaClass = class_isMetaClass(kind);
+  const char *selName = sel_getName(_cmd);
+  Method method = class_getInstanceMethod(kind, _cmd);
+
+  if (method) {
+    fprintf(file, "**%s%s<%s@%p> %c|%s|", spaces, spaces, class_getName(kind), (void *)obj,
+        (isMetaClass) ? '+' : '-', selName);
+    cs->isLoggingEnabled = 0;
+    NSUInteger index = 2;
+    NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:method_getTypeEncoding(method)];
+    for (const char *str = selName; true; ++str) {
+      char cur = *str;
+      if (cur == '\0') {
+        break;
+      }
+      if (cur == ':') {
+        const char *type = [signature getArgumentTypeAtIndex:index++];
+        fprintf(file, " ");
+        logArgument(file, type, args);
+      }
+    }
+    fprintf(file, "**\n");
+    cs->isLoggingEnabled = 1;
+  }
 }
 
-static inline void onWatchHit(ThreadCallStack *cs) {
+static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, va_list &args) {
+  Class kind = object_getClass(obj);
+  bool isMetaClass = class_isMetaClass(kind);
+
+  Method method = class_getInstanceMethod(kind, _cmd);
+  if (method) {
+    cs->isLoggingEnabled = 0;
+    // NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:method_getTypeEncoding(method)];
+    cs->isLoggingEnabled = 1;
+    fprintf(file, "%s%s<%s@%p> %c|%s|\n", spaces, spaces, class_getName(kind), (void *)obj,
+        (isMetaClass) ? '+' : '-', sel_getName(_cmd));
+  }
+}
+
+static inline void onWatchHit(ThreadCallStack *cs, va_list &args) {
   const int hitIndex = cs->index;
   CallRecord *hitRecord = &cs->stack[hitIndex];
   hitRecord->isWatchHit = 1;
@@ -284,7 +322,7 @@ static inline void onWatchHit(ThreadCallStack *cs) {
     // Log the hit call.
     char *spaces = cs->spacesStr;
     spaces[hitIndex] = '\0';
-    logWatchedHit(logFile, hitRecord->obj, hitRecord->_cmd, spaces);
+    logWatchedHit(cs, logFile, hitRecord->obj, hitRecord->_cmd, spaces, args);
     // Clean up spacesStr.
     spaces[hitIndex] = ' ';
     // Lastly, set the lastPrintedIndex.
@@ -292,7 +330,7 @@ static inline void onWatchHit(ThreadCallStack *cs) {
   }
 }
 
-static inline void onNestedCall(ThreadCallStack *cs) {
+static inline void onNestedCall(ThreadCallStack *cs, va_list &args) {
   const int curIndex = cs->index;
   FILE *logFile = cs->file;
   if (logFile) {
@@ -300,7 +338,7 @@ static inline void onNestedCall(ThreadCallStack *cs) {
     char *spaces = cs->spacesStr;
     spaces[curIndex] = '\0';
     CallRecord curRecord = cs->stack[curIndex];
-    log(logFile, curRecord.obj, curRecord._cmd, spaces);
+    logObjectAndArgs(cs, logFile, curRecord.obj, curRecord._cmd, spaces, args);
     spaces[curIndex] = ' ';
     // Don't need to set the lastPrintedIndex as it is only useful on the first hit, which has
     // already occurred. 
@@ -325,9 +363,9 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
       HMRemove(objectsSet, (void *)self);
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
-      onWatchHit(cs);
+      onWatchHit(cs, args);
     } else if (cs->numWatchHits > 0) {
-      onNestedCall(cs);
+      onNestedCall(cs, args);
     }
   }
 #else
@@ -345,9 +383,9 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
       UNLOCK;
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
-      onWatchHit(cs);
+      onWatchHit(cs, args);
     } else if (cs->numWatchHits > 0) {
-      onNestedCall(cs);
+      onNestedCall(cs, args);
     }
   }
 #endif

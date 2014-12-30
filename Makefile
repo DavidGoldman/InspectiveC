@@ -5,7 +5,7 @@ TARGET = iphone:8.1:8.1
 include theos/makefiles/common.mk
 
 TWEAK_NAME = InspectiveC
-InspectiveC_FILES = hashmap.mm InspectiveC.mm
+InspectiveC_FILES = hashmap.mm logging.mm InspectiveC.mm
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
