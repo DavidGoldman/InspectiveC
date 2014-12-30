@@ -11,6 +11,7 @@
 
 #include "hashmap.h"
 
+// Optional - comment this out if you want to log on ALL threads (laggy due to rw-locks).
 #define MAIN_THREAD_ONLY
 
 #define MAX_PATH_LENGTH 1024
@@ -353,7 +354,9 @@ uint32_t postObjc_msgSend() {
 
 static id (*orig_objc_msgSend)(id, SEL, ...);
 
-// Returns orig_objc_msgSend in r0.
+// Returns orig_objc_msgSend in r0. Sadly I couldn't figure out a way to "blx orig_objc_msgSend"
+// and moving this directly inside the replacementObjc_msgSend method generates assembly that
+// overrides r0 before can we push it... without this you're gonna have a bad time. 
 __attribute__((__naked__))
 uint32_t getOrigObjc_msgSend() {
   __asm__ volatile (
