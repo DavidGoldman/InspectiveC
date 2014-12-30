@@ -3,7 +3,7 @@ InspectiveC
 
 MobileSubstrate based objc_msgSend hook for debugging/inspection purposes.
 
-Logs output to /tmp/InspectiveC/\<exe\>/\<pid\>_\<tid\>
+Logs output to /tmp/InspectiveC/\<exe\>/\<pid\>_\<tid\>.
 
 Based on [itrace by emeau](https://github.com/emeau/itrace), [AspectiveC by saurik](http://svn.saurik.com/repos/menes/trunk/aspectivec/AspectiveC.mm), and [Subjective-C by kennytm](http://networkpx.blogspot.com/2009/09/introducing-subjective-c.html).
 
@@ -30,4 +30,3 @@ assembly code.
 
 Modify InspectiveC.plist to choose where to inject InspectiveC and just run "make package" to get
 the dylib.
-
