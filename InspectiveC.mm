@@ -4,7 +4,6 @@
 #include <cstdarg>
 #include <cstdio>
 
-#include <set>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -151,13 +150,16 @@ typedef struct CallRecord_ {
   id obj;
   SEL _cmd;
   uint32_t lr;
+  char isWatchHit;
 } CallRecord;
 
 typedef struct ThreadCallStack_ {
   FILE *file;
+  char *spacesStr;
   CallRecord *stack;
   int allocatedLength;
   int index;
+  int numWatchHits;
 } ThreadCallStack;
 
 extern "C" char ***_NSGetArgv(void);
@@ -194,42 +196,93 @@ static inline ThreadCallStack * getThreadCallStack() {
 #else
     cs->file = newFileForThread();
 #endif
+    cs->spacesStr = (char *)malloc(DEFAULT_CALLSTACK_DEPTH + 1);
+    memset(cs->spacesStr, ' ', DEFAULT_CALLSTACK_DEPTH);
+    cs->spacesStr[DEFAULT_CALLSTACK_DEPTH] = '\0';
     cs->stack = (CallRecord *)calloc(DEFAULT_CALLSTACK_DEPTH, sizeof(CallRecord));
     cs->allocatedLength = DEFAULT_CALLSTACK_DEPTH;
     cs->index = -1;
+    cs->numWatchHits = 0;
     pthread_setspecific(threadKey, cs);
   }
   return cs;
 }
 
-static inline void pushCallRecord(id obj, uint32_t lr, SEL _cmd) {
-  ThreadCallStack *cs = getThreadCallStack();
+static inline void pushCallRecord(id obj, uint32_t lr, SEL _cmd, ThreadCallStack *cs) {
   int nextIndex = (++cs->index);
   if (nextIndex >= cs->allocatedLength) {
     cs->allocatedLength += CALLSTACK_DEPTH_INCREMENT;
     cs->stack = (CallRecord *)realloc(cs->stack, cs->allocatedLength * sizeof(CallRecord));
+    cs->spacesStr = (char *)realloc(cs->spacesStr, cs->allocatedLength + 1);
+    memset(cs->spacesStr, ' ', cs->allocatedLength);
+    cs->spacesStr[cs->allocatedLength] = '\0';
   }
   CallRecord *newRecord = &cs->stack[nextIndex];
   newRecord->obj = obj;
   newRecord->_cmd = _cmd;
   newRecord->lr = lr;
+  newRecord->isWatchHit = 0;
 }
 
-static inline CallRecord * popCallRecord() {
-  ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
+static inline CallRecord * popCallRecord(ThreadCallStack *cs) {
   return &cs->stack[cs->index--];
 }
 
- static void destroyThreadCallStack(void *ptr) {
+static void destroyThreadCallStack(void *ptr) {
   ThreadCallStack *cs = (ThreadCallStack *)ptr;
   free(cs->stack);
   free(cs);
- }
+}
 
-static void log(FILE *file, id obj, SEL _cmd) {
-  if (obj) {
-    Class kind = object_getClass(obj);
-    fprintf(file, "%s\t%s\n", class_getName(kind), sel_getName(_cmd));
+static inline void log(FILE *file, id obj, SEL _cmd, char *spaces) {
+  Class kind = object_getClass(obj);
+  fprintf(file, "%s%s<%s@%p>\t%s\n", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
+}
+
+static inline void logWatchedHit(FILE *file, id obj, SEL _cmd, char *spaces) {
+  Class kind = object_getClass(obj);
+  fprintf(file, "%s%s**<%s@%p>\t%s**\n", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
+}
+
+static inline void onWatchHit(ThreadCallStack *cs) {
+  const int hitIndex = cs->index;
+  CallRecord *hitRecord = &cs->stack[hitIndex];
+  hitRecord->isWatchHit = 1;
+  ++cs->numWatchHits;
+
+  FILE *logFile = cs->file;
+  if (logFile) {
+    // Log previous calls if it's our first hit on the stack.
+    if (cs->numWatchHits == 1) {
+      for (int i = 0; i < hitIndex; ++i) {
+        CallRecord record = cs->stack[i];
+        // Modify spacesStr.
+        char *spaces = cs->spacesStr;
+        spaces[i] = '\0';
+        log(logFile, record.obj, record._cmd, spaces);
+        // Clean up spacesStr.
+        spaces[i] = ' ';
+      }
+    }
+    // Log the hit call.
+    char *spaces = cs->spacesStr;
+    spaces[hitIndex] = '\0';
+    logWatchedHit(logFile, hitRecord->obj, hitRecord->_cmd, spaces);
+    // Clean up spacesStr.
+    spaces[hitIndex] = ' ';
+  }
+}
+
+static inline void onNestedCall(ThreadCallStack *cs) {
+  const int curIndex = cs->index;
+  FILE *logFile = cs->file;
+  if (logFile) {
+    // Log the current call.
+    char *spaces = cs->spacesStr;
+    spaces[curIndex] = '\0';
+    CallRecord curRecord = cs->stack[curIndex];
+    log(logFile, curRecord.obj, curRecord._cmd, spaces);
+    spaces[curIndex] = ' ';
   }
 }
 
@@ -238,7 +291,8 @@ static void log(FILE *file, id obj, SEL _cmd) {
 // Called in our replacementObjc_msgSend before calling the original objc_msgSend.
 // This pushes a CallRecord to our stack, most importantly saving the lr.
 void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
-  pushCallRecord(self, lr, _cmd);
+  ThreadCallStack *cs = getThreadCallStack();
+  pushCallRecord(self, lr, _cmd, cs);
 
 #ifdef MAIN_THREAD_ONLY
   if (self && pthread_main_np()) {
@@ -250,10 +304,9 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
       HMRemove(objectsSet, (void *)self);
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
-      FILE *logFile = getThreadCallStack()->file;
-      if (logFile) {
-        log(logFile, self, _cmd);
-      }
+      onWatchHit(cs);
+    } else if (cs->numWatchHits > 0) {
+      onNestedCall(cs);
     }
   }
 #else
@@ -271,10 +324,9 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
       UNLOCK;
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
-      FILE *logFile = getThreadCallStack()->file;
-      if (logFile) {
-        log(logFile, self, _cmd);
-      }
+      onWatchHit(cs);
+    } else if (cs->numWatchHits > 0) {
+      onNestedCall(cs);
     }
   }
 #endif
@@ -283,7 +335,11 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
 // Called in our replacementObjc_msgSend after calling the original objc_msgSend.
 // This returns the lr in r0.
 uint32_t postObjc_msgSend() {
-  CallRecord *record = popCallRecord();
+  ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
+  CallRecord *record = popCallRecord(cs);
+  if (record->isWatchHit) {
+    --cs->numWatchHits;
+  }
   return record->lr;
 }
 
