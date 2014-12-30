@@ -273,13 +273,22 @@ static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _c
     } else {
       fprintf(file, "%s%s***-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
     }
+    const char *typeEncoding = method_getTypeEncoding(method);
+    if (!typeEncoding) {
+      fprintf(file, " ~NO ENCODING~***\n");
+      return;
+    }
+
     cs->isLoggingEnabled = 0;
-    NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:method_getTypeEncoding(method)];
+    NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
     const NSUInteger numberOfArguments = [signature numberOfArguments];
     for (NSUInteger index = 2; index < numberOfArguments; ++index) {
       const char *type = [signature getArgumentTypeAtIndex:index];
       fprintf(file, " ");
-      logArgument(file, type, args);
+      if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
+        fprintf(file, "~ BAIL on \"%s\"~", type);
+        break;
+      }
     }
     fprintf(file, "***\n");
     cs->isLoggingEnabled = 1;
@@ -292,14 +301,30 @@ static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL
 
   Method method = class_getInstanceMethod(kind, _cmd);
   if (method) {
-    cs->isLoggingEnabled = 0;
-    // NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:method_getTypeEncoding(method)];
-    cs->isLoggingEnabled = 1;
     if (isMetaClass) {
-      fprintf(file, "%s%s+|%s %s|\n", spaces, spaces, class_getName(kind), sel_getName(_cmd));
+      fprintf(file, "%s%s+|%s %s|", spaces, spaces, class_getName(kind), sel_getName(_cmd));
     } else {
-      fprintf(file, "%s%s-|%s@<%p> %s|\n", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
+      fprintf(file, "%s%s-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
     }
+    const char *typeEncoding = method_getTypeEncoding(method);
+    if (!typeEncoding) {
+      fprintf(file, " ~NO ENCODING~\n");
+      return;
+    }
+
+    cs->isLoggingEnabled = 0;
+    NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
+    const NSUInteger numberOfArguments = [signature numberOfArguments];
+    for (NSUInteger index = 2; index < numberOfArguments; ++index) {
+      const char *type = [signature getArgumentTypeAtIndex:index];
+      fprintf(file, " ");
+      if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
+        fprintf(file, "~ BAIL on \"%s\"~", type);
+        break;
+      }
+    }
+    fprintf(file, "\n");
+    cs->isLoggingEnabled = 1;
   }
 }
 
