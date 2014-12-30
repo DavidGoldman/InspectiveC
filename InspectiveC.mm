@@ -160,6 +160,7 @@ typedef struct ThreadCallStack_ {
   int allocatedLength;
   int index;
   int numWatchHits;
+  int lastPrintedIndex;
 } ThreadCallStack;
 
 extern "C" char ***_NSGetArgv(void);
@@ -201,7 +202,7 @@ static inline ThreadCallStack * getThreadCallStack() {
     cs->spacesStr[DEFAULT_CALLSTACK_DEPTH] = '\0';
     cs->stack = (CallRecord *)calloc(DEFAULT_CALLSTACK_DEPTH, sizeof(CallRecord));
     cs->allocatedLength = DEFAULT_CALLSTACK_DEPTH;
-    cs->index = -1;
+    cs->index = cs->lastPrintedIndex = -1;
     cs->numWatchHits = 0;
     pthread_setspecific(threadKey, cs);
   }
@@ -252,9 +253,9 @@ static inline void onWatchHit(ThreadCallStack *cs) {
 
   FILE *logFile = cs->file;
   if (logFile) {
-    // Log previous calls if it's our first hit on the stack.
+    // Log previous calls if necessary.
     if (cs->numWatchHits == 1) {
-      for (int i = 0; i < hitIndex; ++i) {
+      for (int i = cs->lastPrintedIndex + 1; i < hitIndex; ++i) {
         CallRecord record = cs->stack[i];
         // Modify spacesStr.
         char *spaces = cs->spacesStr;
@@ -270,6 +271,8 @@ static inline void onWatchHit(ThreadCallStack *cs) {
     logWatchedHit(logFile, hitRecord->obj, hitRecord->_cmd, spaces);
     // Clean up spacesStr.
     spaces[hitIndex] = ' ';
+    // Lastly, set the lastPrintedIndex.
+    cs->lastPrintedIndex = hitIndex;
   }
 }
 
@@ -283,6 +286,8 @@ static inline void onNestedCall(ThreadCallStack *cs) {
     CallRecord curRecord = cs->stack[curIndex];
     log(logFile, curRecord.obj, curRecord._cmd, spaces);
     spaces[curIndex] = ' ';
+    // Don't need to set the lastPrintedIndex as it is only useful on the first hit, which has
+    // already occurred. 
   }
 }
 
@@ -339,6 +344,9 @@ uint32_t postObjc_msgSend() {
   CallRecord *record = popCallRecord(cs);
   if (record->isWatchHit) {
     --cs->numWatchHits;
+  }
+  if (cs->lastPrintedIndex > cs->index) {
+    cs->lastPrintedIndex = cs->index;
   }
   return record->lr;
 }
