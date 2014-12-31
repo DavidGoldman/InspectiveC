@@ -57,6 +57,9 @@ static unsigned pointerHash(void *v) {
 #ifdef MAIN_THREAD_ONLY
 
 extern "C" void InspectiveC_watchObject(id obj) {
+  if (obj == nil) {
+    return;
+  }
   if (pthread_main_np()) {
     HMPut(objectsSet, (void *)obj, (void *)obj);
   } else {
@@ -66,6 +69,9 @@ extern "C" void InspectiveC_watchObject(id obj) {
   }
 }
 extern "C" void InspectiveC_unwatchObject(id obj) {
+  if (obj == nil) {
+    return;
+  }
   if (pthread_main_np()) {
     HMRemove(objectsSet, (void *)obj);
   } else {
@@ -76,6 +82,9 @@ extern "C" void InspectiveC_unwatchObject(id obj) {
 }
 
 extern "C" void InspectiveC_watchInstancesOfClass(Class clazz) {
+  if (clazz == nil) {
+    return;
+  }
   if (pthread_main_np()) {
     HMPut(classSet, (void *)clazz, (void *)clazz);
   } else {
@@ -85,6 +94,9 @@ extern "C" void InspectiveC_watchInstancesOfClass(Class clazz) {
   }
 }
 extern "C" void InspectiveC_unwatchInstancesOfClass(Class clazz) {
+  if (clazz == nil) {
+    return;
+  }
   if (pthread_main_np()) {
     HMRemove(classSet, (void *)clazz);
   } else {
@@ -95,6 +107,9 @@ extern "C" void InspectiveC_unwatchInstancesOfClass(Class clazz) {
 }
 
 extern "C" void InspectiveC_watchSelector(SEL _cmd) {
+  if (_cmd == NULL) {
+    return;
+  }
   if (pthread_main_np()) {
     HMPut(selsSet, (void *)_cmd, (void *)_cmd);
   } else {
@@ -104,6 +119,9 @@ extern "C" void InspectiveC_watchSelector(SEL _cmd) {
   }
 }
 extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
+  if (_cmd == NULL) {
+    return;
+  }
   if (pthread_main_np()) {
     HMRemove(selsSet, (void *)_cmd);
   } else {
@@ -116,33 +134,51 @@ extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
 #else // Multithreaded - uses rw locks.
 
 extern "C" void InspectiveC_watchObject(id obj) {
+  if (obj == nil) {
+    return;
+  }
   WLOCK;
   HMPut(objectsSet, (void *)obj, (void *)obj);
   UNLOCK;
 }
 extern "C" void InspectiveC_unwatchObject(id obj) {
+  if (obj == nil) {
+    return;
+  }
   WLOCK;
   HMRemove(objectsSet, (void *)obj);
   UNLOCK;
 }
 
 extern "C" void InspectiveC_watchInstancesOfClass(Class clazz) {
+  if (clazz == nil) {
+    return;
+  }
   WLOCK;
   HMPut(classSet, (void *)clazz, (void *)clazz);
   UNLOCK;
 }
 extern "C" void InspectiveC_unwatchInstancesOfClass(Class clazz) {
+  if (clazz == nil) {
+    return;
+  }
   WLOCK;
   HMRemove(classSet, (void *)clazz);
   UNLOCK;
 }
 
 extern "C" void InspectiveC_watchSelector(SEL _cmd) {
+  if (_cmd == NULL) {
+    return;
+  }
   WLOCK;
   HMPut(selsSet, (void *)_cmd, (void *)_cmd);
   UNLOCK;
 }
 extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
+  if (_cmd == NULL) {
+    return;
+  }
   WLOCK;
   HMRemove(selsSet, (void *)_cmd);
   UNLOCK;
