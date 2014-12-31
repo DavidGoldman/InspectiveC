@@ -1,7 +1,7 @@
 InspectiveC
 ======
 
-##### MobileSubstrate based objc_msgSend hook for debugging/inspection purposes.
+*MobileSubstrate based objc_msgSend hook for debugging/inspection purposes.*
 
 Based on [itrace by emeau](https://github.com/emeau/itrace), [AspectiveC by saurik](http://svn.saurik.com/repos/menes/trunk/aspectivec/AspectiveC.mm), and [Subjective-C by kennytm](http://networkpx.blogspot.com/2009/09/introducing-subjective-c.html).
 

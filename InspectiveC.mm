@@ -263,6 +263,9 @@ static inline CallRecord * popCallRecord(ThreadCallStack *cs) {
 
 static void destroyThreadCallStack(void *ptr) {
   ThreadCallStack *cs = (ThreadCallStack *)ptr;
+  if (cs->file) {
+    fclose(cs->file);
+  }
   free(cs->spacesStr);
   free(cs->stack);
   free(cs);
