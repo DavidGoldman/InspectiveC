@@ -33,4 +33,23 @@ compile this on my Mac with Clang - if you use anything different you may have s
 assembly code.
 
 Modify InspectiveC.plist to choose where to inject InspectiveC and just run "make package" to get
-the dylib.
+the dylib. Then, in your tweak, you can reference the following API by including InspectiveC.h.
+
+```c
+// Watches/unwatches the specified object. Objects will be automatically unwatched when they
+// receive a -|dealloc| message.
+void InspectiveC_watchObject(id obj);
+void InspectiveC_unwatchObject(id obj);
+
+// Watches/unwatches instances of the specified class ONLY - will not watch subclass instances.
+void InspectiveC_watchInstancesOfClass(Class clazz);
+void InspectiveC_unwatchInstancesOfClass(Class clazz);
+
+// Watches/unwatches the specified selector.
+void InspectiveC_watchSelector(SEL _cmd);
+void InspectiveC_unwatchSelector(SEL _cmd);
+
+// Enables/disables logging for the current thread.
+void InspectiveC_enableLogging();
+void InspectiveC_disableLogging();
+```
