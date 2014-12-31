@@ -20,6 +20,11 @@
 #define DEFAULT_CALLSTACK_DEPTH 128
 #define CALLSTACK_DEPTH_INCREMENT 64
 
+// NSClassicMapTable supports handling of void *s using callback functions, yet their methods
+// accept (fake) ids. =/ i.e. objectForKey: and setObject:forKey: are dangerous for us because what
+// looks like an id can be a regular old int and crash our program...
+static Class NSClassicMapTable_Class;
+
 static HashMapRef objectsSet;
 static HashMapRef classSet;
 static HashMapRef selsSet;
@@ -325,7 +330,7 @@ static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _c
       fprintf(file, "%s%s***-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
     }
     const char *typeEncoding = method_getTypeEncoding(method);
-    if (!typeEncoding) {
+    if (!typeEncoding || kind == NSClassicMapTable_Class) {
       fprintf(file, " ~NO ENCODING~***\n");
       return;
     }
@@ -358,10 +363,12 @@ static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL
       fprintf(file, "%s%s-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
     }
     const char *typeEncoding = method_getTypeEncoding(method);
-    if (!typeEncoding) {
+    if (!typeEncoding || kind == NSClassicMapTable_Class) {
       fprintf(file, " ~NO ENCODING~\n");
       return;
     }
+
+    fprintf(file, " %s", typeEncoding);
 
     cs->isLoggingEnabled = 0;
     NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
@@ -534,6 +541,8 @@ MSInitialize {
   NSString *path = [paths firstObject];
   directory = [path UTF8String];
   NSLog(@"[InspectiveC] Loading - Directory is \"%s\"", directory);
+
+  NSClassicMapTable_Class = [objc_getClass("NSClassicMapTable") class];
 
   objectsSet = HMCreate(&pointerEquality, &pointerHash);
   classSet = HMCreate(&pointerEquality, &pointerHash);
