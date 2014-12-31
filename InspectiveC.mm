@@ -368,8 +368,6 @@ static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL
       return;
     }
 
-    fprintf(file, " %s", typeEncoding);
-
     cs->isLoggingEnabled = 0;
     NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
     const NSUInteger numberOfArguments = [signature numberOfArguments];
