@@ -24,6 +24,8 @@ static HashMapRef objectsSet;
 static HashMapRef classSet;
 static HashMapRef selsSet;
 static pthread_key_t threadKey;
+static const char *tmpDirectory = "/tmp";
+static const char *directory;
 
 #ifndef MAIN_THREAD_ONLY
 static pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
@@ -168,6 +170,23 @@ typedef struct ThreadCallStack_ {
 
 extern "C" char ***_NSGetArgv(void);
 
+static bool createLogFileDirs(const char *baseDir, char *path, const char *exeName, pid_t pid) {
+  sprintf(path, "%s/InspectiveC", baseDir);
+  if (mkdir(path, 0755))
+    return false;
+  sprintf(path, "%s/InspectiveC/%s", baseDir, exeName);
+  if (mkdir(path, 0755))
+    return false;
+
+  if (pthread_main_np()) {
+    sprintf(path, "%s/InspectiveC/%s/%d_main.log", baseDir, exeName, pid);
+  } else {
+    mach_port_t tid = pthread_mach_thread_np(pthread_self());
+    sprintf(path, "%s/InspectiveC/%s/%d_t%u.log", baseDir, exeName, pid, tid);
+  }
+  return true;
+}
+
 static FILE * newFileForThread() {
   const char *exeName = **_NSGetArgv();
   if (exeName == NULL) {
@@ -179,16 +198,13 @@ static FILE * newFileForThread() {
   pid_t pid = getpid();
 
   char path[MAX_PATH_LENGTH];
-  mkdir("/tmp/InspectiveC", 0755);
-  sprintf(path, "/tmp/InspectiveC/%s", exeName);
-  mkdir(path, 0755);
-  if (pthread_main_np()) {
-    sprintf(path, "/tmp/InspectiveC/%s/%d_main.log", exeName, pid);
-  } else {
-    mach_port_t tid = pthread_mach_thread_np(pthread_self());
-    sprintf(path, "/tmp/InspectiveC/%s/%d_t%u.log", exeName, pid, tid);
+  if (createLogFileDirs(tmpDirectory, path, exeName, pid)) {
+    return fopen(path, "a");
   }
-  return fopen(path, "a");
+  if (createLogFileDirs(directory, path, exeName, pid)) {
+    return fopen(path, "a");
+  }
+  return NULL;
 }
 
 static inline ThreadCallStack * getThreadCallStack() {
@@ -478,6 +494,11 @@ static void replacementObjc_msgSend() {
 
 MSInitialize {
   pthread_key_create(&threadKey, &destroyThreadCallStack);
+
+  NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+  NSString *path = [paths firstObject];
+  directory = [path UTF8String];
+  NSLog(@"[InspectiveC] Loading - Sandboxed directory is \"%s\"", directory);
 
   objectsSet = HMCreate(&pointerEquality, &pointerHash);
   classSet = HMCreate(&pointerEquality, &pointerHash);

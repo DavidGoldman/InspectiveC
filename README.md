@@ -3,7 +3,9 @@ InspectiveC
 
 MobileSubstrate based objc_msgSend hook for debugging/inspection purposes.
 
-Logs output to /tmp/InspectiveC/\<exe\>/\<pid\>_\<tid\>.
+Logs output to /tmp/InspectiveC or /var/mobile/Containers/Data/Application/<App-Hex>/Documents/InspectiveC (sandbox).
+
+Inside the InspectiveC folder, you'll find \<exe\>/\<pid\>_\<tid\>.log.
 
 Based on [itrace by emeau](https://github.com/emeau/itrace), [AspectiveC by saurik](http://svn.saurik.com/repos/menes/trunk/aspectivec/AspectiveC.mm), and [Subjective-C by kennytm](http://networkpx.blogspot.com/2009/09/introducing-subjective-c.html).
 
