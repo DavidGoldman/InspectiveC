@@ -24,7 +24,6 @@ static HashMapRef objectsSet;
 static HashMapRef classSet;
 static HashMapRef selsSet;
 static pthread_key_t threadKey;
-static const char *tmpDirectory = "/tmp";
 static const char *directory;
 
 #ifndef MAIN_THREAD_ONLY
@@ -234,9 +233,6 @@ static FILE * newFileForThread() {
   pid_t pid = getpid();
 
   char path[MAX_PATH_LENGTH];
-  if (createLogFileDirs(tmpDirectory, path, exeName, pid)) {
-    return fopen(path, "a");
-  }
   if (createLogFileDirs(directory, path, exeName, pid)) {
     return fopen(path, "a");
   }
@@ -537,7 +533,7 @@ MSInitialize {
   NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
   NSString *path = [paths firstObject];
   directory = [path UTF8String];
-  NSLog(@"[InspectiveC] Loading - Sandboxed directory is \"%s\"", directory);
+  NSLog(@"[InspectiveC] Loading - Directory is \"%s\"", directory);
 
   objectsSet = HMCreate(&pointerEquality, &pointerHash);
   classSet = HMCreate(&pointerEquality, &pointerHash);
