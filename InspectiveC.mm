@@ -210,23 +210,6 @@ typedef struct ThreadCallStack_ {
 
 extern "C" char ***_NSGetArgv(void);
 
-static bool createLogFileDirs(const char *baseDir, char *path, const char *exeName, pid_t pid) {
-  sprintf(path, "%s/InspectiveC", baseDir);
-  if (mkdir(path, 0755))
-    return false;
-  sprintf(path, "%s/InspectiveC/%s", baseDir, exeName);
-  if (mkdir(path, 0755))
-    return false;
-
-  if (pthread_main_np()) {
-    sprintf(path, "%s/InspectiveC/%s/%d_main.log", baseDir, exeName, pid);
-  } else {
-    mach_port_t tid = pthread_mach_thread_np(pthread_self());
-    sprintf(path, "%s/InspectiveC/%s/%d_t%u.log", baseDir, exeName, pid, tid);
-  }
-  return true;
-}
-
 static FILE * newFileForThread() {
   const char *exeName = **_NSGetArgv();
   if (exeName == NULL) {
@@ -236,12 +219,20 @@ static FILE * newFileForThread() {
   }
 
   pid_t pid = getpid();
-
   char path[MAX_PATH_LENGTH];
-  if (createLogFileDirs(directory, path, exeName, pid)) {
-    return fopen(path, "a");
+
+  sprintf(path, "%s/InspectiveC", directory);
+  mkdir(path, 0755);
+  sprintf(path, "%s/InspectiveC/%s", directory, exeName);
+  mkdir(path, 0755);
+
+  if (pthread_main_np()) {
+    sprintf(path, "%s/InspectiveC/%s/%d_main.log", directory, exeName, pid);
+  } else {
+    mach_port_t tid = pthread_mach_thread_np(pthread_self());
+    sprintf(path, "%s/InspectiveC/%s/%d_t%u.log", directory, exeName, pid, tid);
   }
-  return NULL;
+  return fopen(path, "a");
 }
 
 static inline ThreadCallStack * getThreadCallStack() {

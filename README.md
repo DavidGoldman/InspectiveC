@@ -32,9 +32,18 @@ of the iOS SDK. You may have to modify the Makefile (i.e. ARCHS or TARGET) and/o
 compile this on my Mac with Clang - if you use anything different you may have some issues with the
 assembly code.
 
-Modify InspectiveC.plist to choose where to inject InspectiveC and just run "make package" to get
-the dylib. Then, in your tweak, you can reference the following API by including InspectiveC.h.
+When you install the deb, you will find **libinspectivec.dylib** in /usr/lib. Copy this dylib into
+$THEOS/lib and then copy **InspectiveC.h** into $THEOS/include. Finally, add the following line to
+your makefile.
 
+```
+<YOUR_TWEAK_NAME>_LIBRARIES = inspectivec
+```
+
+This will automatically load InspectiveC in your tweak (whatever process your tweak injects into).
+
+
+InspectiveC.h headlines the following API:
 ```c
 // Watches/unwatches the specified object. Objects will be automatically unwatched when they
 // receive a -|dealloc| message.
