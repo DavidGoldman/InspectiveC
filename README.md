@@ -33,14 +33,24 @@ compile this on my Mac with Clang - if you use anything different you may have s
 assembly code.
 
 When you install the deb, you will find **libinspectivec.dylib** in /usr/lib. Copy this dylib into
-$THEOS/lib and then copy **InspectiveC.h** into $THEOS/include. Finally, add the following line to
-your makefile.
+$THEOS/lib and then copy **InspectiveC.h** into $THEOS/include.
+
+**Option 1: Use the InspectiveC Wrapper**
+
+Copy the source of PutThisInYourTweak.m into your Tweak file and use those functions.
+
+
+
+**Option 2: Link directly against InspectiveC**
+
+Add the following line to your makefil:
 
 ```
 <YOUR_TWEAK_NAME>_LIBRARIES = inspectivec
 ```
 
 This will automatically load InspectiveC in your tweak (whatever process your tweak injects into).
+Then include InspectiveC.h in your tweak and use those functions.
 
 
 InspectiveC.h headlines the following API:
