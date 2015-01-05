@@ -37,8 +37,34 @@ $THEOS/lib and then copy **InspectiveC.h** into $THEOS/include.
 
 **Option 1: Use the InspectiveC Wrapper**
 
-Copy the source of PutThisInYourTweak.m into your Tweak file and use those functions.
+Include PutThisInYourTweak.m in your Tweak file. You should probably use a DEBUG guard.
 
+```c
+#if INSPECTIVEC_DEBUG
+#include "PutThisInYourTweak.m"
+#endif
+```
+
+Then use the following API:
+
+```c
+// Watches/unwatches the specified object. Objects will be automatically unwatched when they
+// receive a -|dealloc| message.
+void watchObject(id obj);
+void unwatchObject(id obj);
+
+// Watches/unwatches instances of the specified class ONLY - will not watch subclass instances.
+void watchClass(Class clazz);
+void unwatchClass(Class clazz);
+
+// Watches/unwatches the specified selector.
+void watchSelector(SEL _cmd);
+void unwatchSelector(SEL _cmd);
+
+// Enables/disables logging for the current thread.
+void enableLogging();
+void disableLogging();
+```
 
 
 **Option 2: Link directly against InspectiveC**
