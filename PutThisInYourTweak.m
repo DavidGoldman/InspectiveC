@@ -10,7 +10,6 @@ typedef void (*inspectiveC_ClassFuncT)(Class clazz);
 typedef void (*inspectiveC_SelFuncT)(SEL _cmd);
 typedef void (*inspectiveC_voidFuncT)(void);
 
-static BOOL inspectiveC_hasTriedToLoad = NO;
 static void *inspectiveC_Handle = NULL;
 
 static inspectiveC_ObjectFuncT $watchObject;
@@ -34,75 +33,74 @@ static void * inspectiveC_loadFunctionNamed(const char *name) {
 }
 
 static void inspectiveC_init() {
-  if (!inspectiveC_hasTriedToLoad) {
-    inspectiveC_Handle = dlopen("/usr/lib/libinspectivec.dylib", RTLD_NOW);
+  static dispatch_once_t predicate;
+  dispatch_once(&predicate, ^{
+      inspectiveC_Handle = dlopen("/usr/lib/libinspectivec.dylib", RTLD_NOW);
 
-    if (inspectiveC_Handle) {
-      $watchObject = (inspectiveC_ObjectFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchObject");
-      $unwatchObject = (inspectiveC_ObjectFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchObject");
+      if (inspectiveC_Handle) {
+        $watchObject = (inspectiveC_ObjectFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchObject");
+        $unwatchObject = (inspectiveC_ObjectFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchObject");
 
-      $watchClass = (inspectiveC_ClassFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchInstancesOfClass");
-      $unwatchClass = (inspectiveC_ClassFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchInstancesOfClass");
+        $watchClass = (inspectiveC_ClassFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchInstancesOfClass");
+        $unwatchClass = (inspectiveC_ClassFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchInstancesOfClass");
 
-      $watchSelector = (inspectiveC_SelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchSelector");
-      $unwatchSelector = (inspectiveC_SelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchSelector");
+        $watchSelector = (inspectiveC_SelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchSelector");
+        $unwatchSelector = (inspectiveC_SelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchSelector");
 
-      $enableLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_enableLogging");
-      $disableLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_disableLogging");
-    } else {
-      NSLog(@"[InspectiveC Wrapper] Unable to load libinspectivec! Error: %s", dlerror());
-    }
-
-    inspectiveC_hasTriedToLoad = YES;
-  }
+        $enableLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_enableLogging");
+        $disableLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_disableLogging");
+      } else {
+        NSLog(@"[InspectiveC Wrapper] Unable to load libinspectivec! Error: %s", dlerror());
+      }
+  });
 }
 
-static void watchObject(id obj) {
+void watchObject(id obj) {
   inspectiveC_init();
   if ($watchObject) {
     $watchObject(obj);
   }
 }
-static void unwatchObject(id obj) {
+void unwatchObject(id obj) {
   inspectiveC_init();
   if ($unwatchObject) {
     $unwatchObject(obj);
   }
 }
 
-static void watchClass(Class clazz) {
+void watchClass(Class clazz) {
   inspectiveC_init();
   if ($watchClass) {
     $watchClass(clazz);
   }
 }
-static void unwatchClass(Class clazz) {
+void unwatchClass(Class clazz) {
   inspectiveC_init();
   if ($unwatchClass) {
     $unwatchClass(clazz);
   }
 }
 
-static void watchSelector(SEL _cmd) {
+void watchSelector(SEL _cmd) {
   inspectiveC_init();
   if ($watchSelector) {
     $watchSelector(_cmd);
   }
 }
-static void unwatchSelector(SEL _cmd) {
+void unwatchSelector(SEL _cmd) {
   inspectiveC_init();
   if ($unwatchSelector) {
     $unwatchSelector(_cmd);
   }
 }
 
-static void enableLogging() {
+void enableLogging() {
   inspectiveC_init();
   if ($enableLogging) {
     $enableLogging();
   }
 }
-static void disableLogging() {
+void disableLogging() {
   inspectiveC_init();
   if ($disableLogging) {
     $disableLogging();

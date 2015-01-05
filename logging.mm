@@ -110,7 +110,7 @@ loop:
       double value = va_arg(args, double);
       fprintf(file, "%g", value);
     } break;
-    case '{': { // A struct (or union?). We check for some common structs.
+    case '{': { // A struct. We check for some common structs.
       if (strncmp(type, "{CGAffineTransform=", 19) == 0) {
         CGAffineTransform at = va_arg(args, CGAffineTransform);
         logNSString(file, NSStringFromCGAffineTransform(at));
