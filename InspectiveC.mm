@@ -20,10 +20,16 @@
 #define DEFAULT_CALLSTACK_DEPTH 128
 #define CALLSTACK_DEPTH_INCREMENT 64
 
+// The original objc_msgSend.
+static id (*orig_objc_msgSend)(id, SEL, ...);
+
 // NSClassicMapTable supports handling of void *s using callback functions, yet their methods
 // accept (fake) ids. =/ i.e. objectForKey: and setObject:forKey: are dangerous for us because what
 // looks like an id can be a regular old int and crash our program...
 static Class NSClassicMapTable_Class;
+
+// We have to call [<self> class] when logging to make sure that the class is initialized.
+static SEL class_SEL = @selector(class);
 
 static HashMapRef objectsSet;
 static HashMapRef classSet;
@@ -343,10 +349,11 @@ static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _c
 }
 
 static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, va_list &args) {
-  Class kind = object_getClass(obj);
-  bool isMetaClass = class_isMetaClass(kind);
+  // Call [<obj> class] to make sure the class is initialized.
+  Class kind = ((Class (*)(id, SEL))orig_objc_msgSend)(obj, class_SEL);
+  bool isMetaClass = (kind == obj);
 
-  Method method = class_getInstanceMethod(kind, _cmd);
+  Method method = (isMetaClass) ? class_getClassMethod(kind, _cmd) : class_getInstanceMethod(kind, _cmd);
   if (method) {
     if (isMetaClass) {
       fprintf(file, "%s%s+|%s %s|", spaces, spaces, class_getName(kind), sel_getName(_cmd));
@@ -480,8 +487,6 @@ uint32_t postObjc_msgSend() {
   }
   return record->lr;
 }
-
-static id (*orig_objc_msgSend)(id, SEL, ...);
 
 // Returns orig_objc_msgSend in r0. Sadly I couldn't figure out a way to "blx orig_objc_msgSend"
 // and moving this directly inside the replacementObjc_msgSend method generates assembly that
