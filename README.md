@@ -37,7 +37,7 @@ $THEOS/lib and then copy **InspectiveC.h** into $THEOS/include.
 
 **Option 1: Use the InspectiveC Wrapper**
 
-Include PutThisInYourTweak.m in your Tweak file. You should probably use a DEBUG guard.
+Include **PutThisInYourTweak.m** in your Tweak file. You should probably use a DEBUG guard.
 
 ```c
 #if INSPECTIVEC_DEBUG
@@ -69,7 +69,7 @@ void disableLogging();
 
 **Option 2: Link directly against InspectiveC**
 
-Add the following line to your makefil:
+Add the following line to your makefile:
 
 ```
 <YOUR_TWEAK_NAME>_LIBRARIES = inspectivec
