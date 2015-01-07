@@ -37,11 +37,11 @@ $THEOS/lib and then copy **InspectiveC.h** into $THEOS/include.
 
 **Option 1: Use the InspectiveC Wrapper**
 
-Include **PutThisInYourTweak.m** in your Tweak file. You should probably use a DEBUG guard.
+Include **InspCWrapper.m** in your Tweak file. You should probably use a DEBUG guard.
 
 ```c
 #if INSPECTIVEC_DEBUG
-#include "PutThisInYourTweak.m"
+#include "InspCWrapper.m"
 #endif
 ```
 
