@@ -23,10 +23,11 @@
 // The original objc_msgSend.
 static id (*orig_objc_msgSend)(id, SEL, ...);
 
-// NSClassicMapTable supports handling of void *s using callback functions, yet their methods
+// These classes support handling of void *s using callback functions, yet their methods
 // accept (fake) ids. =/ i.e. objectForKey: and setObject:forKey: are dangerous for us because what
 // looks like an id can be a regular old int and crash our program...
-static Class NSClassicMapTable_Class;
+static Class NSMapTable_Class;
+static Class NSHashTable_Class;
 
 // We have to call [<self> class] when logging to make sure that the class is initialized.
 static SEL class_SEL = @selector(class);
@@ -315,6 +316,19 @@ static inline void log(FILE *file, id obj, SEL _cmd, char *spaces) {
   }
 }
 
+static BOOL isKindOfClass(Class selfClass, Class clazz) {
+  for (Class candidate = selfClass; candidate; candidate = class_getSuperclass(candidate)) {
+    if (candidate == clazz) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
+static inline BOOL classSupportsArbitraryPointerTypes(Class clazz) {
+  return isKindOfClass(clazz, NSMapTable_Class) || isKindOfClass(clazz, NSHashTable_Class);
+}
+
 static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, va_list &args) {
   Class kind = object_getClass(obj);
   bool isMetaClass = class_isMetaClass(kind);
@@ -327,7 +341,7 @@ static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _c
       fprintf(file, "%s%s***-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
     }
     const char *typeEncoding = method_getTypeEncoding(method);
-    if (!typeEncoding || kind == NSClassicMapTable_Class) {
+    if (!typeEncoding || classSupportsArbitraryPointerTypes(kind)) {
       fprintf(file, " ~NO ENCODING~***\n");
       return;
     }
@@ -361,7 +375,7 @@ static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL
       fprintf(file, "%s%s-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
     }
     const char *typeEncoding = method_getTypeEncoding(method);
-    if (!typeEncoding || kind == NSClassicMapTable_Class) {
+    if (!typeEncoding || classSupportsArbitraryPointerTypes(kind)) {
       fprintf(file, " ~NO ENCODING~\n");
       return;
     }
@@ -536,7 +550,8 @@ MSInitialize {
   directory = [path UTF8String];
   NSLog(@"[InspectiveC] Loading - Directory is \"%s\"", directory);
 
-  NSClassicMapTable_Class = [objc_getClass("NSClassicMapTable") class];
+  NSMapTable_Class = [objc_getClass("NSMapTable") class];
+  NSHashTable_Class = [objc_getClass("NSHashTable") class];
 
   objectsSet = HMCreate(&pointerEquality, &pointerHash);
   classSet = HMCreate(&pointerEquality, &pointerHash);
