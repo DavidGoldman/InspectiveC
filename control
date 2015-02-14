@@ -1,9 +1,10 @@
-Package: com.dgoldman.inspectivec
+Package: com.golddavid.inspectivec
 Name: InspectiveC
-Depends: mobilesubstrate
+Depends: mobilesubstrate (>= 0.9.5.000)
 Version: 1.0.1
 Architecture: iphoneos-arm
 Description: objc_msgSend hook for debugging/inspection purposes.
-Maintainer: David Goldman
-Author: David Goldman
-Section: Tweaks
+Depiction: http://apt.golddavid.com/depictions/InspectiveC.html
+Maintainer: David Goldman <help@golddavid.com>
+Author: David Goldman <help@golddavid.com>
+Section: Development
