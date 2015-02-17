@@ -248,8 +248,10 @@ static inline ThreadCallStack * getThreadCallStack() {
     cs = (ThreadCallStack *)malloc(sizeof(ThreadCallStack));
 #ifdef MAIN_THREAD_ONLY
     cs->file = (pthread_main_np()) ? newFileForThread() : NULL;
+    cs->isLoggingEnabled = (pthread_main_np()) ? 1 : 0;
 #else
     cs->file = newFileForThread();
+    cs->isLoggingEnabled = 1;
 #endif
     cs->spacesStr = (char *)malloc(DEFAULT_CALLSTACK_DEPTH + 1);
     memset(cs->spacesStr, ' ', DEFAULT_CALLSTACK_DEPTH);
@@ -258,7 +260,6 @@ static inline ThreadCallStack * getThreadCallStack() {
     cs->allocatedLength = DEFAULT_CALLSTACK_DEPTH;
     cs->index = cs->lastPrintedIndex = -1;
     cs->numWatchHits = 0;
-    cs->isLoggingEnabled = 1;
     pthread_setspecific(threadKey, cs);
   }
   return cs;
@@ -274,6 +275,11 @@ extern "C" void InspectiveC_enableLogging() {
 extern "C" void InspectiveC_disableLogging() {
   ThreadCallStack *cs = getThreadCallStack();
   cs->isLoggingEnabled = 0;
+}
+
+extern "C" int InspectiveC_isLoggingEnabled() {
+  ThreadCallStack *cs = getThreadCallStack();
+  return (int)cs->isLoggingEnabled;
 }
 
 static inline void pushCallRecord(id obj, uint32_t lr, SEL _cmd, ThreadCallStack *cs) {
@@ -347,15 +353,19 @@ static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _c
     }
 
     cs->isLoggingEnabled = 0;
-    NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
-    const NSUInteger numberOfArguments = [signature numberOfArguments];
-    for (NSUInteger index = 2; index < numberOfArguments; ++index) {
-      const char *type = [signature getArgumentTypeAtIndex:index];
-      fprintf(file, " ");
-      if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
-        fprintf(file, "~ BAIL on \"%s\"~", type);
-        break;
+    @try {
+      NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
+      const NSUInteger numberOfArguments = [signature numberOfArguments];
+      for (NSUInteger index = 2; index < numberOfArguments; ++index) {
+        const char *type = [signature getArgumentTypeAtIndex:index];
+        fprintf(file, " ");
+        if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
+          fprintf(file, "~BAIL on \"%s\"~", type);
+          break;
+        }
       }
+    } @catch(NSException *e) {
+      fprintf(file, "~BAD ENCODING~");
     }
     fprintf(file, "***\n");
     cs->isLoggingEnabled = 1;
@@ -381,15 +391,19 @@ static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL
     }
 
     cs->isLoggingEnabled = 0;
-    NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
-    const NSUInteger numberOfArguments = [signature numberOfArguments];
-    for (NSUInteger index = 2; index < numberOfArguments; ++index) {
-      const char *type = [signature getArgumentTypeAtIndex:index];
-      fprintf(file, " ");
-      if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
-        fprintf(file, "~ BAIL on \"%s\"~", type);
-        break;
+    @try {
+      NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
+      const NSUInteger numberOfArguments = [signature numberOfArguments];
+      for (NSUInteger index = 2; index < numberOfArguments; ++index) {
+        const char *type = [signature getArgumentTypeAtIndex:index];
+        fprintf(file, " ");
+        if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
+          fprintf(file, "~BAIL on \"%s\"~", type);
+          break;
+        }
       }
+    } @catch(NSException *e) {
+      fprintf(file, "~BAD ENCODING~");
     }
     fprintf(file, "\n");
     cs->isLoggingEnabled = 1;
@@ -505,40 +519,48 @@ uint32_t postObjc_msgSend() {
 // Returns orig_objc_msgSend in r0. Sadly I couldn't figure out a way to "blx orig_objc_msgSend"
 // and moving this directly inside the replacementObjc_msgSend method generates assembly that
 // overrides r0 before can we push it... without this you're gonna have a bad time. 
-__attribute__((__naked__))
 uint32_t getOrigObjc_msgSend() {
-  __asm__ volatile (
-      "mov r0, %0" :: "r"(orig_objc_msgSend)
-    );
+  return reinterpret_cast<uint32_t>(orig_objc_msgSend);
 }
 
 // Our replacement objc_msgSeng.
 __attribute__((__naked__))
 static void replacementObjc_msgSend() {
+  __asm__ volatile (
+  // Make sure it's enabled.
+      "push {r0-r3, lr}\n"
+      "blx _InspectiveC_isLoggingEnabled\n"
+      "mov r12, r0\n"
+      "pop {r0-r3, lr}\n"
+      "ands r12, r12\n"
+      "beq Lpassthrough\n"
   // Call our preObjc_msgSend hook.
-  __asm__ volatile ( // Swap the args around for our call to preObjc_msgSend.
+  // Swap the args around for our call to preObjc_msgSend.
       "push {r0, r1, r2, r3}\n"
       "mov r2, r1\n"
       "mov r1, lr\n"
       "add r3, sp, #8\n"
       "blx __Z15preObjc_msgSendP11objc_objectjP13objc_selectorPv\n"
       "pop {r0, r1, r2, r3}\n"
-    );
   // Call through to the original objc_msgSend.
-  __asm__ volatile (
       "push {r0}\n"
       "blx __Z19getOrigObjc_msgSendv\n"
       "mov r12, r0\n"
       "pop {r0}\n"
       "blx r12\n"
-    );
   // Call our postObjc_msgSend hook.
-  __asm__ volatile (
       "push {r0-r3}\n"
       "blx __Z16postObjc_msgSendv\n"
       "mov lr, r0\n"
       "pop {r0-r3}\n"
       "bx lr\n"
+  // Pass through to original objc_msgSend.
+      "Lpassthrough:\n"
+      "push {r0, lr}\n"
+      "blx __Z19getOrigObjc_msgSendv\n"
+      "mov r12, r0\n"
+      "pop {r0, lr}\n"
+      "bx r12"
     );
 }
 

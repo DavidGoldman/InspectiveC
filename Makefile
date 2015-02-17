@@ -1,5 +1,6 @@
 ARCHS = armv7
 TARGET = iphone:8.1:8.1
+ADDITIONAL_OBJCFLAGS = -fobjc-exceptions
 # ADDITIONAL_OBJCFLAGS = -S
 
 LIBRARY_NAME = libinspectivec
