@@ -460,7 +460,8 @@ static inline void onNestedCall(ThreadCallStack *cs, va_list &args) {
 
 // Called in our replacementObjc_msgSend before calling the original objc_msgSend.
 // This pushes a CallRecord to our stack, most importantly saving the lr.
-void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
+// Returns orig_objc_msgSend.
+uint32_t preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
   ThreadCallStack *cs = getThreadCallStack();
   pushCallRecord(self, lr, _cmd, cs);
 
@@ -500,6 +501,7 @@ void preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
     }
   }
 #endif
+  return reinterpret_cast<uint32_t>(orig_objc_msgSend);
 }
 
 // Called in our replacementObjc_msgSend after calling the original objc_msgSend.
@@ -534,19 +536,16 @@ static void replacementObjc_msgSend() {
       "pop {r0-r3, lr}\n"
       "ands r12, r12\n"
       "beq Lpassthrough\n"
-  // Call our preObjc_msgSend hook.
+  // Call our preObjc_msgSend hook - returns orig_objc_msgSend.
   // Swap the args around for our call to preObjc_msgSend.
       "push {r0, r1, r2, r3}\n"
       "mov r2, r1\n"
       "mov r1, lr\n"
       "add r3, sp, #8\n"
       "blx __Z15preObjc_msgSendP11objc_objectjP13objc_selectorPv\n"
+      "mov r12, r0\n"
       "pop {r0, r1, r2, r3}\n"
   // Call through to the original objc_msgSend.
-      "push {r0}\n"
-      "blx __Z19getOrigObjc_msgSendv\n"
-      "mov r12, r0\n"
-      "pop {r0}\n"
       "blx r12\n"
   // Call our postObjc_msgSend hook.
       "push {r0-r3}\n"
