@@ -4,8 +4,23 @@
 
 // Heavily based/taken from AspectiveC by saurik.
 
-static inline void logNSString(FILE *file, NSString *str) {
+static Class NSString_Class = objc_getClass("NSString");
+
+static inline void logNSStringForStruct(FILE *file, NSString *str) {
   fprintf(file, "%s", [str UTF8String]);
+}
+
+static inline void logNSString(FILE *file, NSString *str) {
+  fprintf(file, "@\"%s\"", [str UTF8String]);
+}
+
+static inline BOOL isKindOfClass(Class selfClass, Class clazz) {
+  for (Class candidate = selfClass; candidate; candidate = class_getSuperclass(candidate)) {
+    if (candidate == clazz) {
+      return YES;
+    }
+  }
+  return NO;
 }
 
 void logObject(FILE *file, id obj) {
@@ -16,6 +31,10 @@ void logObject(FILE *file, id obj) {
   Class kind = object_getClass(obj);
   if (class_isMetaClass(kind)) {
     fprintf(file, "[%s class]", class_getName(obj));
+    return;
+  }
+  if (isKindOfClass(kind, NSString_Class)) {
+    logNSString(file, obj);
     return;
   }
   fprintf(file, "<%s@0x%08lx>", class_getName(kind), reinterpret_cast<uintptr_t>(obj));
@@ -113,25 +132,25 @@ loop:
     case '{': { // A struct. We check for some common structs.
       if (strncmp(type, "{CGAffineTransform=", 19) == 0) {
         CGAffineTransform at = va_arg(args, CGAffineTransform);
-        logNSString(file, NSStringFromCGAffineTransform(at));
+        logNSStringForStruct(file, NSStringFromCGAffineTransform(at));
       } else if (strncmp(type, "{CGPoint=", 9) == 0) {
         CGPoint point = va_arg(args, CGPoint);
-        logNSString(file, NSStringFromCGPoint(point));
+        logNSStringForStruct(file, NSStringFromCGPoint(point));
       } else if (strncmp(type, "{CGRect=", 8) == 0) {
         CGRect rect = va_arg(args, CGRect);
-        logNSString(file, NSStringFromCGRect(rect));
+        logNSStringForStruct(file, NSStringFromCGRect(rect));
       } else if (strncmp(type, "{CGSize=", 8) == 0) {
         CGSize size = va_arg(args, CGSize);
-        logNSString(file, NSStringFromCGSize(size));
+        logNSStringForStruct(file, NSStringFromCGSize(size));
       } else if (strncmp(type, "{UIEdgeInsets=", 14) == 0) {
         UIEdgeInsets insets = va_arg(args, UIEdgeInsets);
-        logNSString(file, NSStringFromUIEdgeInsets(insets));
+        logNSStringForStruct(file, NSStringFromUIEdgeInsets(insets));
       } else if (strncmp(type, "{UIOffset=", 10) == 0) {
         UIOffset offset = va_arg(args, UIOffset);
-        logNSString(file, NSStringFromUIOffset(offset));
+        logNSStringForStruct(file, NSStringFromUIOffset(offset));
       } else if (strncmp(type, "{_NSRange=", 10) == 0) {
         NSRange range = va_arg(args, NSRange);
-        logNSString(file, NSStringFromRange(range));
+        logNSStringForStruct(file, NSStringFromRange(range));
       } else { // Nope.
         return false;
       }
