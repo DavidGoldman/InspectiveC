@@ -9,6 +9,8 @@ Logs output to **/var/mobile/Documents/InspectiveC** or **/var/mobile/Containers
 
 This is **not compatible with arm64** at the moment, although I do hope to add support in the future.
 
+**You can download the deb from the stable_debs folder or from my [repo](http://apt.golddavid.com/).**
+
 **Features:**
 * Watch specific objects
 * Watch instances of a specific class
