@@ -3,10 +3,6 @@
 
 #include <objc/objc.h>
 
-#if __arm64__
-#error Not compatible with arm64!
-#endif
-
 #if __cplusplus
 extern "C" {
 #endif

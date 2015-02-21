@@ -48,6 +48,7 @@ static int pointerEquality(void *a, void *b) {
   return ia == ib;
 }
 
+// TODO(DavidGoldman): Proper 64bit support.
 static unsigned pointerHash(void *v) {
   uintptr_t a = reinterpret_cast<uintptr_t>(v);
   a = (a + 0x7ed55d16) + (a << 12);
@@ -200,7 +201,7 @@ extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
 typedef struct CallRecord_ {
   id obj;
   SEL _cmd;
-  uint32_t lr;
+  uintptr_t lr;
   char isWatchHit;
 } CallRecord;
 
@@ -242,7 +243,7 @@ static FILE * newFileForThread() {
   return fopen(path, "a");
 }
 
-static inline ThreadCallStack * getThreadCallStack() {
+static ThreadCallStack * getThreadCallStack() {
   ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
   if (cs == NULL) {
     cs = (ThreadCallStack *)malloc(sizeof(ThreadCallStack));
@@ -282,7 +283,18 @@ extern "C" int InspectiveC_isLoggingEnabled() {
   return (int)cs->isLoggingEnabled;
 }
 
-static inline void pushCallRecord(id obj, uint32_t lr, SEL _cmd, ThreadCallStack *cs) {
+static void destroyThreadCallStack(void *ptr) {
+  ThreadCallStack *cs = (ThreadCallStack *)ptr;
+  if (cs->file) {
+    fclose(cs->file);
+  }
+  free(cs->spacesStr);
+  free(cs->stack);
+  free(cs);
+}
+
+#ifndef __arm64__
+static inline void pushCallRecord(id obj, uintptr_t lr, SEL _cmd, ThreadCallStack *cs) {
   int nextIndex = (++cs->index);
   if (nextIndex >= cs->allocatedLength) {
     cs->allocatedLength += CALLSTACK_DEPTH_INCREMENT;
@@ -300,16 +312,6 @@ static inline void pushCallRecord(id obj, uint32_t lr, SEL _cmd, ThreadCallStack
 
 static inline CallRecord * popCallRecord(ThreadCallStack *cs) {
   return &cs->stack[cs->index--];
-}
-
-static void destroyThreadCallStack(void *ptr) {
-  ThreadCallStack *cs = (ThreadCallStack *)ptr;
-  if (cs->file) {
-    fclose(cs->file);
-  }
-  free(cs->spacesStr);
-  free(cs->stack);
-  free(cs);
 }
 
 static inline void log(FILE *file, id obj, SEL _cmd, char *spaces) {
@@ -455,13 +457,25 @@ static inline void onNestedCall(ThreadCallStack *cs, va_list &args) {
     // already occurred. 
   }
 }
+#endif
 
 // Hooking magic.
 
+#ifdef __arm64__
+static int counter = 0;
+
+uintptr_t preObjc_msgSend(id self, SEL _cmd) {
+  if (pthread_main_np() && (++counter & 0x4FFF) == 0) {
+    ThreadCallStack *cs = getThreadCallStack();
+    fprintf(cs->file, "%s\n", sel_getName(_cmd));
+  }
+  return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
+}
+#else
 // Called in our replacementObjc_msgSend before calling the original objc_msgSend.
 // This pushes a CallRecord to our stack, most importantly saving the lr.
 // Returns orig_objc_msgSend.
-uint32_t preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
+uintptr_t preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, va_list args) {
   ThreadCallStack *cs = getThreadCallStack();
   pushCallRecord(self, lr, _cmd, cs);
 
@@ -501,7 +515,7 @@ uint32_t preObjc_msgSend(id self, uint32_t lr, SEL _cmd, va_list args) {
     }
   }
 #endif
-  return reinterpret_cast<uint32_t>(orig_objc_msgSend);
+  return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
 }
 
 // Called in our replacementObjc_msgSend after calling the original objc_msgSend.
@@ -517,15 +531,52 @@ uint32_t postObjc_msgSend() {
   }
   return record->lr;
 }
+#endif
 
+  // "ldr lr, [sp], #8\n"
 // Returns orig_objc_msgSend in r0. Sadly I couldn't figure out a way to "blx orig_objc_msgSend"
 // and moving this directly inside the replacementObjc_msgSend method generates assembly that
 // overrides r0 before can we push it... without this you're gonna have a bad time. 
-uint32_t getOrigObjc_msgSend() {
-  return reinterpret_cast<uint32_t>(orig_objc_msgSend);
+uintptr_t getOrigObjc_msgSend() {
+  return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
 }
 
-// Our replacement objc_msgSeng.
+// 32-bit vs 64-bit stuff.
+#ifdef __arm64__
+// Our replacement objc_msgSend (arm64).
+__attribute__((__naked__))
+static volatile void replacementObjc_msgSend() {
+  __asm__ volatile (
+    // push {x0-x8, lr}
+      "stp x0, x1, [sp, #-16]!\n"
+      "stp x2, x3, [sp, #-16]!\n"
+      "stp x4, x5, [sp, #-16]!\n"
+      "stp x6, x7, [sp, #-16]!\n"
+      "stp x8, lr, [sp, #-16]!\n"
+    // push {q0-q7}
+      "stp q0, q1, [sp, #-32]!\n"
+      "stp q2, q3, [sp, #-32]!\n"
+      "stp q4, q5, [sp, #-32]!\n"
+      "stp q6, q7, [sp, #-32]!\n"
+    // Call preObjc_msgSend and move orig_objc_msgSend into x0.
+      "bl __Z15preObjc_msgSendP11objc_objectP13objc_selector\n"
+      "mov x9, x0\n"
+    // pop {q0-q7}
+      "ldp q6, q7, [sp], #32\n"
+      "ldp q4, q5, [sp], #32\n"
+      "ldp q2, q3, [sp], #32\n"
+      "ldp q0, q1, [sp], #32\n"
+    // pop {x0-x8, lr}
+      "ldp x8, lr, [sp], #16\n"
+      "ldp x6, x7, [sp], #16\n"
+      "ldp x4, x5, [sp], #16\n"
+      "ldp x2, x3, [sp], #16\n"
+      "ldp x0, x1, [sp], #16\n"
+      "br x9"
+    );
+}
+#else
+// Our replacement objc_msgSeng for arm32.
 __attribute__((__naked__))
 static void replacementObjc_msgSend() {
   __asm__ volatile (
@@ -542,7 +593,7 @@ static void replacementObjc_msgSend() {
       "mov r2, r1\n"
       "mov r1, lr\n"
       "add r3, sp, #8\n"
-      "blx __Z15preObjc_msgSendP11objc_objectjP13objc_selectorPv\n"
+      "blx __Z15preObjc_msgSendP11objc_objectmP13objc_selectorPv\n"
       "mov r12, r0\n"
       "pop {r0, r1, r2, r3}\n"
   // Call through to the original objc_msgSend.
@@ -562,6 +613,7 @@ static void replacementObjc_msgSend() {
       "bx r12"
     );
 }
+#endif
 
 MSInitialize {
   pthread_key_create(&threadKey, &destroyThreadCallStack);
