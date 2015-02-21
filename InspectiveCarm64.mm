@@ -12,6 +12,10 @@ static inline void onNestedCall(ThreadCallStack *cs) {
     char *spaces = cs->spacesStr;
     spaces[curIndex] = '\0';
     CallRecord curRecord = cs->stack[curIndex];
+
+    // Call [<obj> class] to make sure the class is initialized.
+    ((Class (*)(id, SEL))orig_objc_msgSend)(curRecord.obj, class_SEL);
+
     log(logFile, curRecord.obj, curRecord._cmd, spaces);
     spaces[curIndex] = ' ';
     // Don't need to set the lastPrintedIndex as it is only useful on the first hit, which has
