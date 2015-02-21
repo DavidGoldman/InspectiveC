@@ -270,11 +270,10 @@ static inline ThreadCallStack * getThreadCallStack() {
     cs = (ThreadCallStack *)malloc(sizeof(ThreadCallStack));
 #ifdef MAIN_THREAD_ONLY
     cs->file = (pthread_main_np()) ? newFileForThread() : NULL;
-    cs->isLoggingEnabled = (pthread_main_np()) ? 1 : 0;
 #else
     cs->file = newFileForThread();
-    cs->isLoggingEnabled = 1;
 #endif
+    cs->isLoggingEnabled = (cs->file != NULL);
     cs->spacesStr = (char *)malloc(DEFAULT_CALLSTACK_DEPTH + 1);
     memset(cs->spacesStr, ' ', DEFAULT_CALLSTACK_DEPTH);
     cs->spacesStr[DEFAULT_CALLSTACK_DEPTH] = '\0';
@@ -336,6 +335,17 @@ uintptr_t getOrigObjc_msgSend() {
 
 // 32-bit vs 64-bit stuff.
 #ifdef __arm64__
+
+static inline void logHit(FILE *file, id obj, SEL _cmd, char *spaces) {
+  Class kind = object_getClass(obj);
+  bool isMetaClass = class_isMetaClass(kind);
+  if (isMetaClass) {
+    fprintf(file, "%s%s***+|%s %s|***\n", spaces, spaces, class_getName(kind), sel_getName(_cmd));
+  } else {
+    fprintf(file, "%s%s***-|%s %s| @<%p>***\n", spaces, spaces, class_getName(kind), sel_getName(_cmd), (void *)obj);
+  }
+}
+
 #include "InspectiveCarm64.mm"
 #else
 #include "InspectiveCarm32.mm"

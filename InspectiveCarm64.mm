@@ -4,6 +4,40 @@ struct PointerAndInt_ {
   int i;
 };
 
+static inline void onNestedCall(ThreadCallStack *cs) {
+  const int curIndex = cs->index;
+  FILE *logFile = cs->file;
+  if (logFile) {
+    // Log the current call.
+    char *spaces = cs->spacesStr;
+    spaces[curIndex] = '\0';
+    CallRecord curRecord = cs->stack[curIndex];
+    log(logFile, curRecord.obj, curRecord._cmd, spaces);
+    spaces[curIndex] = ' ';
+    // Don't need to set the lastPrintedIndex as it is only useful on the first hit, which has
+    // already occurred. 
+  }
+}
+
+static inline void onWatchHit(ThreadCallStack *cs) {
+  const int hitIndex = cs->index;
+  CallRecord *hitRecord = &cs->stack[hitIndex];
+  hitRecord->isWatchHit = 1;
+  ++cs->numWatchHits;
+
+  FILE *logFile = cs->file;
+  if (logFile) {
+    // Log the hit call.
+    char *spaces = cs->spacesStr;
+    spaces[hitIndex] = '\0';
+    logHit(logFile, hitRecord->obj, hitRecord->_cmd, spaces);
+    // Clean up spacesStr.
+    spaces[hitIndex] = ' ';
+    // Lastly, set the lastPrintedIndex.
+    cs->lastPrintedIndex = hitIndex;
+  }
+}
+
 // arm64 hooking magic.
 
 // Called in our replacementObjc_msgSend before calling the original objc_msgSend.
@@ -26,9 +60,9 @@ struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd) {
       HMRemove(objectsSet, (void *)self);
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
-      log(cs->file, self, _cmd, cs->spacesStr);
+      onWatchHit(cs);
     } else if (cs->numWatchHits > 0) {
-      log(cs->file, self, _cmd, cs->spacesStr);
+      onNestedCall(cs);
     }
   }
 #else
@@ -46,9 +80,9 @@ struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd) {
       UNLOCK;
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
-      // TODO
+      onWatchHit(cs);
     } else if (cs->numWatchHits > 0) {
-      // TODO
+      onNestedCall(cs);
     }
   }
 #endif
@@ -56,7 +90,7 @@ struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd) {
 }
 
 // Called in our replacementObjc_msgSend after calling the original objc_msgSend.
-// This returns the lr in r0.
+// This returns the lr in x0.
 uintptr_t postObjc_msgSend() {
   ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
   CallRecord *record = popCallRecord(cs);
@@ -125,7 +159,7 @@ static volatile void replacementObjc_msgSend() {
     // Call our postObjc_msgSend hook.
       "bl __Z16postObjc_msgSendv\n"
       "mov lr, x0\n"
-        // pop {q0-q7}
+    // pop {q0-q7}
       "ldp q6, q7, [sp], #32\n"
       "ldp q4, q5, [sp], #32\n"
       "ldp q2, q3, [sp], #32\n"
