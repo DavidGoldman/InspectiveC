@@ -124,6 +124,11 @@ uintptr_t postObjc_msgSend() {
 // info in C (to be used for argument logging).
 // It will need to look like: "stp x8, lr\n stp x6, x7\n x4, x5..." and the vectors should probably
 // go first so the regular registers are first in the struct.
+//
+// See:
+// https://blog.nelhage.com/2010/10/amd64-and-va_arg/
+// http://infocenter.arm.com/help/topic/com.arm.doc.ihi0055b/IHI0055B_aapcs64.pdf
+// https://developer.apple.com/library/ios/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html
 __attribute__((__naked__))
 static volatile void replacementObjc_msgSend() {
   __asm__ volatile (
