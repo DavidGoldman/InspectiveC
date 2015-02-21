@@ -27,6 +27,18 @@ static inline void onWatchHit(ThreadCallStack *cs) {
 
   FILE *logFile = cs->file;
   if (logFile) {
+    // Log previous calls if necessary.
+    if (cs->numWatchHits == 1) {
+      for (int i = cs->lastPrintedIndex + 1; i < hitIndex; ++i) {
+        CallRecord record = cs->stack[i];
+        // Modify spacesStr.
+        char *spaces = cs->spacesStr;
+        spaces[i] = '\0';
+        log(logFile, record.obj, record._cmd, spaces);
+        // Clean up spacesStr.
+        spaces[i] = ' ';
+      }
+    }
     // Log the hit call.
     char *spaces = cs->spacesStr;
     spaces[hitIndex] = '\0';
