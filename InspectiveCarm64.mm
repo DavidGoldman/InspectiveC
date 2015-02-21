@@ -141,7 +141,7 @@ static volatile void replacementObjc_msgSend() {
       "bl __Z15preObjc_msgSendP11objc_objectmP13objc_selector\n"
       "mov x9, x0\n"
       "mov x10, x1\n"
-      "tst x10, x10\n" // Set condition code for latter branch.
+      "tst x10, x10\n" // Set condition code for later branch.
     // pop {q0-q7}
       "ldp q6, q7, [sp], #32\n"
       "ldp q4, q5, [sp], #32\n"
