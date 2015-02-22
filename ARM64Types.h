@@ -10,26 +10,26 @@
     )
 
 #define pa_float(args) \
-  ( (args.nsrn < 8) ? args.regs->floating.arr[args.nsrn++].f.f4 : \
+  ( (args.nsrn < 8) ? args.regs->floating.arr[args.nsrn++].f.f1 : \
      (*(float *) ((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(float)) + sizeof(float)) - sizeof(float))) \
     )
 
 #define pa_double(args) \
-  ( (args.nsrn < 8) ? args.regs->floating.arr[args.nsrn++].d.d2 : \
+  ( (args.nsrn < 8) ? args.regs->floating.arr[args.nsrn++].d.d1 : \
         (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))) \
     )
 
 typedef union FPReg_ {
   __int128_t q;
   struct {
-    double d1;
-    double d2; // Should have the double. - TODO verify
+    double d1; // Holds the double (LSB).
+    double d2;
   } d;
   struct {
-    float f1;
+    float f1; // Holds the float (LSB).
     float f2;
     float f3;
-    float f4; // Should have the float. - TODO verify
+    float f4;
   } f;
 } FPReg;
 

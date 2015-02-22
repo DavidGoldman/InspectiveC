@@ -56,14 +56,31 @@ void logObject(FILE *file, id obj) {
 #define pa_two_doubles(args, t, varName) \
   t varName; \
   if (args.nsrn < 7) { \
-    double a = args.regs->floating.arr[args.nsrn++].d.d2; \
-    double b = args.regs->floating.arr[args.nsrn++].d.d2; \
+    double a = args.regs->floating.arr[args.nsrn++].d.d1; \
+    double b = args.regs->floating.arr[args.nsrn++].d.d1; \
     varName = (t) { a, b }; \
   } else { \
     args.nsrn = 8; \
     double a = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
     double b = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
     varName = (t) { a, b }; \
+  } \
+
+#define pa_four_doubles(args, t, varName) \
+  t varName; \
+  if (args.nsrn < 5) { \
+    double a = args.regs->floating.arr[args.nsrn++].d.d1; \
+    double b = args.regs->floating.arr[args.nsrn++].d.d1; \
+    double c = args.regs->floating.arr[args.nsrn++].d.d1; \
+    double d = args.regs->floating.arr[args.nsrn++].d.d1; \
+    varName = (t) { a, b, c, d }; \
+  } else { \
+    args.nsrn = 8; \
+    double a = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
+    double b = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
+    double c = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
+    double d = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
+    varName = (t) { a, b, c, d }; \
   } \
 
 #ifdef __arm64__
@@ -156,10 +173,20 @@ bool logArgument(FILE *file, const char *type, pa_list &args) {
         if (strncmp(type, "{CGPoint=", 9) == 0) {
           pa_two_doubles(args, CGPoint, point)
           logNSStringForStruct(file, NSStringFromCGPoint(point));
+        } else if (strncmp(type, "{CGRect=", 8) == 0) {
+          pa_four_doubles(args, UIEdgeInsets, insets)
+          CGRect rect = CGRectMake(insets.top, insets.left, insets.bottom, insets.right);
+          logNSStringForStruct(file, NSStringFromCGRect(rect));
         } else if (strncmp(type, "{CGSize=", 8) == 0) {
           pa_two_doubles(args, CGSize, size)
           logNSStringForStruct(file, NSStringFromCGSize(size));
-        }  else if (strncmp(type, "{_NSRange=", 10) == 0) {
+        }  else if (strncmp(type, "{UIEdgeInsets=", 14) == 0) {
+          pa_four_doubles(args, UIEdgeInsets, insets)
+          logNSStringForStruct(file, NSStringFromUIEdgeInsets(insets));
+        } else if (strncmp(type, "{UIOffset=", 10) == 0) {
+          pa_two_doubles(args, UIOffset, offset)
+          logNSStringForStruct(file, NSStringFromUIOffset(offset));
+        } else if (strncmp(type, "{_NSRange=", 10) == 0) {
           pa_two_ints(args, NSRange, range, unsigned long);
           logNSStringForStruct(file, NSStringFromRange(range));
         } else { // Nope.
