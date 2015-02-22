@@ -4,6 +4,28 @@ struct PointerAndInt_ {
   int i;
 };
 
+struct RegState_ {
+  uint64_t x0;
+  uint64_t x1;
+  uint64_t x2;
+  uint64_t x3;
+  uint64_t x4;
+  uint64_t x5;
+  uint64_t x6;
+  uint64_t x7;
+  uint64_t x8;
+  uint64_t lr;
+
+  __int128_t q0;
+  __int128_t q1;
+  __int128_t q2;
+  __int128_t q3;
+  __int128_t q4;
+  __int128_t q5;
+  __int128_t q6;
+  __int128_t q7;
+};
+
 static inline void onNestedCall(ThreadCallStack *cs) {
   const int curIndex = cs->index;
   FILE *logFile = cs->file;
@@ -59,7 +81,11 @@ static inline void onWatchHit(ThreadCallStack *cs) {
 // Called in our replacementObjc_msgSend before calling the original objc_msgSend.
 // This pushes a CallRecord to our stack, most importantly saving the lr.
 // Returns orig_objc_msgSend in x0 and isLoggingEnabled in x1.
-struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd) {
+struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, struct RegState_ *regs) {
+  // Testing our regs.
+  self = (id)regs->x0;
+  _cmd = (SEL)regs->x1;
+  lr = (uintptr_t)regs->lr;
   ThreadCallStack *cs = getThreadCallStack();
   if (!cs->isLoggingEnabled) { // Not enabled, just return.
     return (struct PointerAndInt_) {reinterpret_cast<uintptr_t>(orig_objc_msgSend), 0};
@@ -120,10 +146,6 @@ uintptr_t postObjc_msgSend() {
 }
 
 // Our replacement objc_msgSend (arm64).
-// TODO(DavidGoldman): Store in register order so we can make a struct regstate which holds onto the
-// info in C (to be used for argument logging).
-// It will need to look like: "stp x8, lr\n stp x6, x7\n x4, x5..." and the vectors should probably
-// go first so the regular registers are first in the struct.
 //
 // See:
 // https://blog.nelhage.com/2010/10/amd64-and-va_arg/
@@ -132,36 +154,37 @@ uintptr_t postObjc_msgSend() {
 __attribute__((__naked__))
 static volatile void replacementObjc_msgSend() {
   __asm__ volatile (
-    // push {x0-x8, lr}
-      "stp x0, x1, [sp, #-16]!\n"
-      "stp x2, x3, [sp, #-16]!\n"
-      "stp x4, x5, [sp, #-16]!\n"
-      "stp x6, x7, [sp, #-16]!\n"
-      "stp x8, lr, [sp, #-16]!\n" // not sure if x8 needed - push for alignment.
     // push {q0-q7}
-      "stp q0, q1, [sp, #-32]!\n"
-      "stp q2, q3, [sp, #-32]!\n"
-      "stp q4, q5, [sp, #-32]!\n"
       "stp q6, q7, [sp, #-32]!\n"
+      "stp q4, q5, [sp, #-32]!\n"
+      "stp q2, q3, [sp, #-32]!\n"
+      "stp q0, q1, [sp, #-32]!\n"
+    // push {x0-x8, lr}
+      "stp x8, lr, [sp, #-16]!\n" // Not sure if x8 needed - push for alignment.
+      "stp x6, x7, [sp, #-16]!\n"
+      "stp x4, x5, [sp, #-16]!\n"
+      "stp x2, x3, [sp, #-16]!\n"
+      "stp x0, x1, [sp, #-16]!\n"
     // Swap args around for call.
       "mov x2, x1\n"
       "mov x1, lr\n"
+      "mov x3, sp\n"
     // Call preObjc_msgSend which puts orig_objc_msgSend into x0 and isLoggingEnabled into x1.
-      "bl __Z15preObjc_msgSendP11objc_objectmP13objc_selector\n"
+      "bl __Z15preObjc_msgSendP11objc_objectmP13objc_selectorP9RegState_\n"
       "mov x9, x0\n"
       "mov x10, x1\n"
       "tst x10, x10\n" // Set condition code for later branch.
-    // pop {q0-q7}
-      "ldp q6, q7, [sp], #32\n"
-      "ldp q4, q5, [sp], #32\n"
-      "ldp q2, q3, [sp], #32\n"
-      "ldp q0, q1, [sp], #32\n"
     // pop {x0-x8, lr}
-      "ldp x8, lr, [sp], #16\n"
-      "ldp x6, x7, [sp], #16\n"
-      "ldp x4, x5, [sp], #16\n"
-      "ldp x2, x3, [sp], #16\n"
       "ldp x0, x1, [sp], #16\n"
+      "ldp x2, x3, [sp], #16\n"
+      "ldp x4, x5, [sp], #16\n"
+      "ldp x6, x7, [sp], #16\n"
+      "ldp x8, lr, [sp], #16\n"
+    // pop {q0-q7}
+      "ldp q0, q1, [sp], #32\n"
+      "ldp q2, q3, [sp], #32\n"
+      "ldp q4, q5, [sp], #32\n"
+      "ldp q6, q7, [sp], #32\n"
     // Make sure it's enabled.
       "b.eq Lpassthrough\n"
     // Call through to the original objc_msgSend.
