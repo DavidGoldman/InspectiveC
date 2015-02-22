@@ -59,8 +59,22 @@ static int pointerEquality(void *a, void *b) {
   return ia == ib;
 }
 
-// TODO(DavidGoldman): Proper 64bit support.
-static unsigned pointerHash(void *v) {
+#ifdef __arm64__
+// 64 bit hash from https://gist.github.com/badboy/6267743.
+static inline NSUInteger pointerHash(void *v) {
+  uintptr_t key = reinterpret_cast<uintptr_t>(v);
+  key = (~key) + (key << 21); // key = (key << 21) - key - 1;
+  key = key ^ (key >> 24);
+  key = (key + (key << 3)) + (key << 8); // key * 265
+  key = key ^ (key >> 14);
+  key = (key + (key << 2)) + (key << 4); // key * 21
+  key = key ^ (key >> 28);
+  key = key + (key << 31);
+  return key;
+}
+#else
+// Robert Jenkin's 32 bit int hash.
+static inline NSUInteger pointerHash(void *v) {
   uintptr_t a = reinterpret_cast<uintptr_t>(v);
   a = (a + 0x7ed55d16) + (a << 12);
   a = (a ^ 0xc761c23c) ^ (a >> 19);
@@ -68,8 +82,9 @@ static unsigned pointerHash(void *v) {
   a = (a + 0xd3a2646c) ^ (a << 9);
   a = (a + 0xfd7046c5) + (a << 3);
   a = (a ^ 0xb55a4f09) ^ (a >> 16);
-  return (unsigned)a;
+  return (NSUInteger)a;
 }
+#endif
 
 // Shared structures.
 typedef struct CallRecord_ {

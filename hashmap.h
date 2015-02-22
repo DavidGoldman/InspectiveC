@@ -2,12 +2,13 @@
 #define HASHMAP_H
 
 #include <stddef.h>
+#import <Foundation/Foundation.h>
 
 // Equality function used in hashmap to test for equality - returns nonzero if equal.
 typedef int (*EqualityFuncT)(void *, void *);
 
 // Hashing function used to position items inside the HashMap.
-typedef unsigned (*HashFuncT)(void *);
+typedef NSUInteger (*HashFuncT)(void *);
 
 // Destruction function used to release {key, value} entries inside the HashMap.
 typedef void (*EntryDestructFuncT)(void *, void *);

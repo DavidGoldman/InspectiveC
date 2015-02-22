@@ -14,13 +14,13 @@
 static void hm_dummy_entry_destruct(void *key, void *value) { }
 
 // Returns the given table index for a given key.
-static inline unsigned hm_index_for_key(HashMapRef hashMap, void *key) {
+static inline NSUInteger hm_index_for_key(HashMapRef hashMap, void *key) {
   return hashMap->hashFunction(key) % hashMap->tableSize;
 }
 
 // Inserts the given bucket into the HashMap in constant time.
 static inline void hm_insert(HashMapRef hashMap, HashBucket *bucket) {
-  unsigned index = hm_index_for_key(hashMap, bucket->key);
+  NSUInteger index = hm_index_for_key(hashMap, bucket->key);
   bucket->next = hashMap->table[index];
   hashMap->table[index] = bucket;
 }
@@ -41,7 +41,7 @@ static inline HashBucket * hm_get_bucket(HashMapRef hashMap, void *key) {
 // Removes the bucket for the given key if it exists. Expected constant time behavior, but has a 
 // worst case of O(n).
 static inline HashBucket * hm_remove_bucket(HashMapRef hashMap, void *key) {
-  unsigned index = hm_index_for_key(hashMap, key);
+  NSUInteger index = hm_index_for_key(hashMap, key);
   HashBucket *prev = NULL;
   HashBucket *cur = hashMap->table[index];
 
@@ -96,7 +96,7 @@ static inline int hm_resize_check(HashMapRef hashMap) {
 
 // V is actually a signed int *.
 // Robert Jenkins' 32 bit integer hash function.
-static unsigned intHash(void *v) {
+static NSUInteger intHash(void *v) {
   unsigned a = *(unsigned *)v;
   a = (a + 0x7ed55d16) + (a<<12);
   a = (a ^ 0xc761c23c) ^ (a>>19);
@@ -126,10 +126,10 @@ static int strEquality(void *va, void *vb) {
 
 // Jenkins's one-at-a-time string hash function, as used in Perl.
 // See http://en.wikipedia.org/wiki/Jenkins_hash_function
-static unsigned strHash(void *voidStr) {
+static NSUInteger strHash(void *voidStr) {
   char *str = (char *)voidStr;
   size_t len = strlen(str);
-  unsigned hash, i;
+  NSUInteger hash, i;
   for(hash = i = 0; i < len; ++i) {
     hash += str[i];
     hash += (hash << 10);
