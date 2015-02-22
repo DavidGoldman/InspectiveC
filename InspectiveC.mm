@@ -24,6 +24,12 @@
 #define WLOCK pthread_rwlock_wrlock(&lock)
 #define UNLOCK pthread_rwlock_unlock(&lock)
 
+#if __arm64__
+#define arg_list pa_list
+#else
+#define arg_list va_list
+#endif
+
 // The original objc_msgSend.
 static id (*orig_objc_msgSend)(id, SEL, ...);
 
@@ -331,6 +337,140 @@ static inline void log(FILE *file, id obj, SEL _cmd, char *spaces) {
 // overrides r0 before can we push it... without this you're gonna have a bad time. 
 uintptr_t getOrigObjc_msgSend() {
   return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
+}
+
+static inline BOOL isKindOfClass(Class selfClass, Class clazz) {
+  for (Class candidate = selfClass; candidate; candidate = class_getSuperclass(candidate)) {
+    if (candidate == clazz) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
+static inline BOOL classSupportsArbitraryPointerTypes(Class clazz) {
+  return isKindOfClass(clazz, NSMapTable_Class) || isKindOfClass(clazz, NSHashTable_Class);
+}
+
+static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, arg_list &args) {
+  Class kind = object_getClass(obj);
+  bool isMetaClass = class_isMetaClass(kind);
+  Method method = class_getInstanceMethod(kind, _cmd);
+
+  if (method) {
+    if (isMetaClass) {
+      fprintf(file, "%s%s***+|%s %s|", spaces, spaces, class_getName(kind), sel_getName(_cmd));
+    } else {
+      fprintf(file, "%s%s***-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
+    }
+    const char *typeEncoding = method_getTypeEncoding(method);
+    if (!typeEncoding || classSupportsArbitraryPointerTypes(kind)) {
+      fprintf(file, " ~NO ENCODING~***\n");
+      return;
+    }
+
+    cs->isLoggingEnabled = 0;
+    @try {
+      NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
+      const NSUInteger numberOfArguments = [signature numberOfArguments];
+      for (NSUInteger index = 2; index < numberOfArguments; ++index) {
+        const char *type = [signature getArgumentTypeAtIndex:index];
+        fprintf(file, " ");
+        if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
+          fprintf(file, "~BAIL on \"%s\"~", type);
+          break;
+        }
+      }
+    } @catch(NSException *e) {
+      fprintf(file, "~BAD ENCODING~");
+    }
+    fprintf(file, "***\n");
+    cs->isLoggingEnabled = 1;
+  }
+}
+
+static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, arg_list &args) {
+  // Call [<obj> class] to make sure the class is initialized.
+  Class kind = ((Class (*)(id, SEL))orig_objc_msgSend)(obj, class_SEL);
+  bool isMetaClass = (kind == obj);
+
+  Method method = (isMetaClass) ? class_getClassMethod(kind, _cmd) : class_getInstanceMethod(kind, _cmd);
+  if (method) {
+    if (isMetaClass) {
+      fprintf(file, "%s%s+|%s %s|", spaces, spaces, class_getName(kind), sel_getName(_cmd));
+    } else {
+      fprintf(file, "%s%s-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
+    }
+    const char *typeEncoding = method_getTypeEncoding(method);
+    if (!typeEncoding || classSupportsArbitraryPointerTypes(kind)) {
+      fprintf(file, " ~NO ENCODING~\n");
+      return;
+    }
+
+    cs->isLoggingEnabled = 0;
+    @try {
+      NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
+      const NSUInteger numberOfArguments = [signature numberOfArguments];
+      for (NSUInteger index = 2; index < numberOfArguments; ++index) {
+        const char *type = [signature getArgumentTypeAtIndex:index];
+        fprintf(file, " ");
+        if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
+          fprintf(file, "~BAIL on \"%s\"~", type);
+          break;
+        }
+      }
+    } @catch(NSException *e) {
+      fprintf(file, "~BAD ENCODING~");
+    }
+    fprintf(file, "\n");
+    cs->isLoggingEnabled = 1;
+  }
+}
+
+static inline void onWatchHit(ThreadCallStack *cs, arg_list &args) {
+  const int hitIndex = cs->index;
+  CallRecord *hitRecord = &cs->stack[hitIndex];
+  hitRecord->isWatchHit = 1;
+  ++cs->numWatchHits;
+
+  FILE *logFile = cs->file;
+  if (logFile) {
+    // Log previous calls if necessary.
+    if (cs->numWatchHits == 1) {
+      for (int i = cs->lastPrintedIndex + 1; i < hitIndex; ++i) {
+        CallRecord record = cs->stack[i];
+        // Modify spacesStr.
+        char *spaces = cs->spacesStr;
+        spaces[i] = '\0';
+        log(logFile, record.obj, record._cmd, spaces);
+        // Clean up spacesStr.
+        spaces[i] = ' ';
+      }
+    }
+    // Log the hit call.
+    char *spaces = cs->spacesStr;
+    spaces[hitIndex] = '\0';
+    logWatchedHit(cs, logFile, hitRecord->obj, hitRecord->_cmd, spaces, args);
+    // Clean up spacesStr.
+    spaces[hitIndex] = ' ';
+    // Lastly, set the lastPrintedIndex.
+    cs->lastPrintedIndex = hitIndex;
+  }
+}
+
+static inline void onNestedCall(ThreadCallStack *cs, arg_list &args) {
+  const int curIndex = cs->index;
+  FILE *logFile = cs->file;
+  if (logFile) {
+    // Log the current call.
+    char *spaces = cs->spacesStr;
+    spaces[curIndex] = '\0';
+    CallRecord curRecord = cs->stack[curIndex];
+    logObjectAndArgs(cs, logFile, curRecord.obj, curRecord._cmd, spaces, args);
+    spaces[curIndex] = ' ';
+    // Don't need to set the lastPrintedIndex as it is only useful on the first hit, which has
+    // already occurred. 
+  }
 }
 
 // 32-bit vs 64-bit stuff.
