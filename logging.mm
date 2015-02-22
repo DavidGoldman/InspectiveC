@@ -2,8 +2,6 @@
 
 #include <objc/runtime.h>
 
-// Heavily based/taken from AspectiveC by saurik.
-
 static Class NSString_Class = objc_getClass("NSString");
 
 static inline void logNSStringForStruct(FILE *file, NSString *str) {
@@ -212,6 +210,7 @@ bool logArgument(FILE *file, const char *type, pa_list &args) {
 }
 #else // arm32
 // Heavily based/taken from AspectiveC by saurik.
+// @see http://svn.saurik.com/repos/menes/trunk/aspectivec/AspectiveC.mm
 // @see https://developer.apple.com/library/mac/documentation/Cocoa/Conceptual/ObjCRuntimeGuide/Articles/ocrtTypeEncodings.html
 bool logArgument(FILE *file, const char *type, va_list &args) {
 loop:
