@@ -6,6 +6,10 @@
 
 static Class NSString_Class = objc_getClass("NSString");
 
+static inline void logNSStringForStruct(FILE *file, NSString *str) {
+  fprintf(file, "%s", [str UTF8String]);
+}
+
 static inline void logNSString(FILE *file, NSString *str) {
   fprintf(file, "@\"%s\"", [str UTF8String]);
 }
@@ -36,7 +40,34 @@ void logObject(FILE *file, id obj) {
   fprintf(file, "<%s@0x%08lx>", class_getName(kind), reinterpret_cast<uintptr_t>(obj));
 }
 
+#define pa_two_ints(args, varType, varName, intType) \
+  varType varName; \
+  if (args.ngrn < 7) { \
+    intType a = (intType)args.regs->general.arr[args.ngrn++]; \
+    intType b = (intType)args.regs->general.arr[args.ngrn++]; \
+    varName = (varType) { a, b }; \
+  } else { \
+    args.ngrn = 8; \
+    intType a = (*(intType *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(intType)) + sizeof(intType)) - sizeof(intType))); \
+    intType b = (*(intType *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(intType)) + sizeof(intType)) - sizeof(intType))); \
+    varName = (varType) { a, b }; \
+  } \
+
+#define pa_two_doubles(args, t, varName) \
+  t varName; \
+  if (args.nsrn < 7) { \
+    double a = args.regs->floating.arr[args.nsrn++].d.d2; \
+    double b = args.regs->floating.arr[args.nsrn++].d.d2; \
+    varName = (t) { a, b }; \
+  } else { \
+    args.nsrn = 8; \
+    double a = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
+    double b = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
+    varName = (t) { a, b }; \
+  } \
+
 #ifdef __arm64__
+
 bool logArgument(FILE *file, const char *type, pa_list &args) {
   loop:
     switch(*type) {
@@ -121,8 +152,20 @@ bool logArgument(FILE *file, const char *type, pa_list &args) {
         double value = pa_double(args);
         fprintf(file, "%g", value);
       } break;
-      case '{': // A struct. We don't support them at the moment.
+      case '{': { // A struct. We check for some common structs.
+        if (strncmp(type, "{CGPoint=", 9) == 0) {
+          pa_two_doubles(args, CGPoint, point)
+          logNSStringForStruct(file, NSStringFromCGPoint(point));
+        } else if (strncmp(type, "{CGSize=", 8) == 0) {
+          pa_two_doubles(args, CGSize, size)
+          logNSStringForStruct(file, NSStringFromCGSize(size));
+        }  else if (strncmp(type, "{_NSRange=", 10) == 0) {
+          pa_two_ints(args, NSRange, range, unsigned long);
+          logNSStringForStruct(file, NSStringFromRange(range));
+        } else { // Nope.
           return false;
+        }
+      } break;
       case 'N': // inout.
       case 'n': // in.
       case 'O': // bycopy.
@@ -138,11 +181,6 @@ bool logArgument(FILE *file, const char *type, pa_list &args) {
     return true;
 }
 #else // arm32
-
-static inline void logNSStringForStruct(FILE *file, NSString *str) {
-  fprintf(file, "%s", [str UTF8String]);
-}
-
 // Heavily based/taken from AspectiveC by saurik.
 // @see https://developer.apple.com/library/mac/documentation/Cocoa/Conceptual/ObjCRuntimeGuide/Articles/ocrtTypeEncodings.html
 bool logArgument(FILE *file, const char *type, va_list &args) {
