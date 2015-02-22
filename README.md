@@ -7,11 +7,10 @@ Based on [itrace by emeau](https://github.com/emeau/itrace), [AspectiveC by saur
 
 Logs output to **/var/mobile/Documents/InspectiveC** or **/var/mobile/Containers/Data/Application/\<App-Hex\>/Documents/InspectiveC** (sandbox). Inside the InspectiveC folder, you'll find **\<exe\>/\<pid\>_\<tid\>.log**.
 
-This has **partial arm64** support - it currently does not log the arguments. 
-
 **You can download the deb from the stable_debs folder or from my [repo](http://apt.golddavid.com/).**
 
 **Features:**
+* arm64 support (and arm32)
 * Watch specific objects
 * Watch instances of a specific class
 * Watch specific selectors
