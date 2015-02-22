@@ -42,7 +42,7 @@ void logObject(FILE *file, id obj) {
 
 // Heavily based/taken from AspectiveC by saurik.
 // @see https://developer.apple.com/library/mac/documentation/Cocoa/Conceptual/ObjCRuntimeGuide/Articles/ocrtTypeEncodings.html
-bool logArgument(FILE *file, const char *type, va_list &args) {
+bool logArgument_arm32(FILE *file, const char *type, va_list &args) {
 loop:
   switch(*type) {
     case '#': // A class object (Class).

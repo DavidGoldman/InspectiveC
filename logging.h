@@ -6,6 +6,6 @@
 
 void logObject(FILE *file, id obj);
 
-bool logArgument(FILE *file, const char *type, va_list &args);
+bool logArgument_arm32(FILE *file, const char *type, va_list &args);
 
 #endif

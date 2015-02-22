@@ -335,17 +335,6 @@ uintptr_t getOrigObjc_msgSend() {
 
 // 32-bit vs 64-bit stuff.
 #ifdef __arm64__
-
-static inline void logHit(FILE *file, id obj, SEL _cmd, char *spaces) {
-  Class kind = object_getClass(obj);
-  bool isMetaClass = class_isMetaClass(kind);
-  if (isMetaClass) {
-    fprintf(file, "%s%s***+|%s %s|***\n", spaces, spaces, class_getName(kind), sel_getName(_cmd));
-  } else {
-    fprintf(file, "%s%s***-|%s %s| @<%p>***\n", spaces, spaces, class_getName(kind), sel_getName(_cmd), (void *)obj);
-  }
-}
-
 #include "InspectiveCarm64.mm"
 #else
 #include "InspectiveCarm32.mm"

@@ -36,7 +36,7 @@ static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _c
       for (NSUInteger index = 2; index < numberOfArguments; ++index) {
         const char *type = [signature getArgumentTypeAtIndex:index];
         fprintf(file, " ");
-        if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
+        if (!logArgument_arm32(file, type, args)) { // Can't understand arg - probably a struct.
           fprintf(file, "~BAIL on \"%s\"~", type);
           break;
         }
@@ -74,7 +74,7 @@ static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL
       for (NSUInteger index = 2; index < numberOfArguments; ++index) {
         const char *type = [signature getArgumentTypeAtIndex:index];
         fprintf(file, " ");
-        if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
+        if (!logArgument_arm32(file, type, args)) { // Can't understand arg - probably a struct.
           fprintf(file, "~BAIL on \"%s\"~", type);
           break;
         }
