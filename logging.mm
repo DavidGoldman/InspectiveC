@@ -145,13 +145,13 @@ bool logArgument(FILE *file, const char *type, pa_list &args) {
         unsigned int value = pa_arg(args, unsigned int);
         fprintf(file, "%u", value);
       } break;
-      case 'l': { // A long.
-        long value = pa_arg(args, long);
-        fprintf(file, "%ld", value);
+      case 'l': { // A long - treated as a 32-bit quantity on 64-bit programs.
+        int value = pa_arg(args, int);
+        fprintf(file, "%d", value);
       } break;
-      case 'L': { // An unsigned long.
-        unsigned long value = pa_arg(args, unsigned long);
-        fprintf(file, "%lu", value);
+      case 'L': { // An unsigned long - treated as a 32-bit quantity on 64-bit programs.
+        unsigned int value = pa_arg(args, unsigned int);
+        fprintf(file, "%u", value);
       } break;
       case 'q': { // A long long.
         long long value = pa_arg(args, long long);
