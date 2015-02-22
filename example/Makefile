@@ -1,4 +1,4 @@
-ARCHS = armv7
+ARCHS = armv7 arm64
 TARGET = iphone:8.1:8.1
 include theos/makefiles/common.mk
 
