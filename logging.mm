@@ -170,7 +170,7 @@ bool logArgument(FILE *file, const char *type, pa_list &args) {
         fprintf(file, "%g", value);
       } break;
       case '{': { // A struct. We check for some common structs.
-        if (strncmp(type, "{CGAffineTransform=", 19) == 0) { // TODO Verify this and figure out why.
+        if (strncmp(type, "{CGAffineTransform=", 19) == 0) {
           CGAffineTransform *ptr = (CGAffineTransform *)pa_arg(args, void *);
           logNSStringForStruct(file, NSStringFromCGAffineTransform(*ptr));
         } else if (strncmp(type, "{CGPoint=", 9) == 0) {
