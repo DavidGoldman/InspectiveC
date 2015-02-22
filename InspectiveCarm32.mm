@@ -47,20 +47,6 @@ uintptr_t preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, va_list args) {
   return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
 }
 
-// Called in our replacementObjc_msgSend after calling the original objc_msgSend.
-// This returns the lr in r0.
-uintptr_t postObjc_msgSend() {
-  ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
-  CallRecord *record = popCallRecord(cs);
-  if (record->isWatchHit) {
-    --cs->numWatchHits;
-  }
-  if (cs->lastPrintedIndex > cs->index) {
-    cs->lastPrintedIndex = cs->index;
-  }
-  return record->lr;
-}
-
 // Our replacement objc_msgSeng for arm32.
 __attribute__((__naked__))
 static void replacementObjc_msgSend() {

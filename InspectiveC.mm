@@ -488,6 +488,20 @@ static inline void onNestedCall(ThreadCallStack *cs, arg_list &args) {
   }
 }
 
+// Called in our replacementObjc_msgSend after calling the original objc_msgSend.
+// This returns the lr in r0/x0.
+uintptr_t postObjc_msgSend() {
+  ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
+  CallRecord *record = popCallRecord(cs);
+  if (record->isWatchHit) {
+    --cs->numWatchHits;
+  }
+  if (cs->lastPrintedIndex > cs->index) {
+    cs->lastPrintedIndex = cs->index;
+  }
+  return record->lr;
+}
+
 // 32-bit vs 64-bit stuff.
 #ifdef __arm64__
 #include "InspectiveCarm64.mm"

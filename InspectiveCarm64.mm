@@ -56,20 +56,6 @@ struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, struct Re
   return (struct PointerAndInt_) {reinterpret_cast<uintptr_t>(orig_objc_msgSend), 1};
 }
 
-// Called in our replacementObjc_msgSend after calling the original objc_msgSend.
-// This returns the lr in x0.
-uintptr_t postObjc_msgSend() {
-  ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
-  CallRecord *record = popCallRecord(cs);
-  if (record->isWatchHit) {
-    --cs->numWatchHits;
-  }
-  if (cs->lastPrintedIndex > cs->index) {
-    cs->lastPrintedIndex = cs->index;
-  }
-  return record->lr;
-}
-
 // Our replacement objc_msgSend (arm64).
 //
 // See:
