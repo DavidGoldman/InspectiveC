@@ -10,10 +10,6 @@ struct PointerAndInt_ {
 // This pushes a CallRecord to our stack, most importantly saving the lr.
 // Returns orig_objc_msgSend in x0 and isLoggingEnabled in x1.
 struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, struct RegState_ *rs) {
-  // Testing our regs.
-  self = (id)rs->general.regs.x0;
-  _cmd = (SEL)rs->general.regs.x1;
-  lr = (uintptr_t)rs->general.regs.lr;
   ThreadCallStack *cs = getThreadCallStack();
   if (!cs->isLoggingEnabled) { // Not enabled, just return.
     return (struct PointerAndInt_) {reinterpret_cast<uintptr_t>(orig_objc_msgSend), 0};
