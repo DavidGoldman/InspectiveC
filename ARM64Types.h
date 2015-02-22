@@ -4,20 +4,27 @@
 // ARM64 defines.
 #define alignof(t) __alignof__(t)
 
+// TODO(DavidGoldman): Treat the regs as a pointer directly to avoid casting? i.e.:
+// (*(t *)(&args.regs->general.arr[args.ngrn++]))
 #define pa_arg(args, t) \
   ( (args.ngrn < 8) ? ((t)(args.regs->general.arr[args.ngrn++])) : \
-      (*(t *) ((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(t)) + sizeof(t)) - sizeof(t))) \
+        pa_stack_arg(args, t) \
     )
 
 #define pa_float(args) \
   ( (args.nsrn < 8) ? args.regs->floating.arr[args.nsrn++].f.f1 : \
-     (*(float *) ((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(float)) + sizeof(float)) - sizeof(float))) \
+        pa_stack_arg(args, float) \
     )
 
 #define pa_double(args) \
   ( (args.nsrn < 8) ? args.regs->floating.arr[args.nsrn++].d.d1 : \
-        (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))) \
+        pa_stack_arg(args, double) \
     )
+
+// We need to align the sp - we do so via sp = ((sp + alignment - 1) & -alignment).
+// Then we increment the sp by the size of the argument and return the argument.
+#define pa_stack_arg(args, t) \
+  (*(t *)( (args.stack = (unsigned char *)( ((uintptr_t)args.stack + (alignof(t) - 1)) & -alignof(t)) + sizeof(t)) - sizeof(t) ))
 
 typedef union FPReg_ {
   __int128_t q;

@@ -48,8 +48,8 @@ void logObject(FILE *file, id obj) {
     varName = (varType) { a, b }; \
   } else { \
     args.ngrn = 8; \
-    intType a = (*(intType *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(intType)) + sizeof(intType)) - sizeof(intType))); \
-    intType b = (*(intType *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(intType)) + sizeof(intType)) - sizeof(intType))); \
+    intType a = pa_stack_arg(args, intType); \
+    intType b = pa_stack_arg(args, intType); \
     varName = (varType) { a, b }; \
   } \
 
@@ -61,8 +61,8 @@ void logObject(FILE *file, id obj) {
     varName = (t) { a, b }; \
   } else { \
     args.nsrn = 8; \
-    double a = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
-    double b = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
+    double a = pa_stack_arg(args, double); \
+    double b = pa_stack_arg(args, double); \
     varName = (t) { a, b }; \
   } \
 
@@ -76,10 +76,10 @@ void logObject(FILE *file, id obj) {
     varName = (t) { a, b, c, d }; \
   } else { \
     args.nsrn = 8; \
-    double a = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
-    double b = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
-    double c = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
-    double d = (*(double *)((args.stack = (unsigned char *)((uintptr_t)args.stack & -alignof(double)) + sizeof(double)) - sizeof(double))); \
+    double a = pa_stack_arg(args, double); \
+    double b = pa_stack_arg(args, double); \
+    double c = pa_stack_arg(args, double); \
+    double d = pa_stack_arg(args, double); \
     varName = (t) { a, b, c, d }; \
   } \
 
