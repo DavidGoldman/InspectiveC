@@ -461,16 +461,14 @@ static inline void onWatchHit(ThreadCallStack *cs, arg_list &args) {
   FILE *logFile = cs->file;
   if (logFile) {
     // Log previous calls if necessary.
-    if (cs->numWatchHits == 1) {
-      for (int i = cs->lastPrintedIndex + 1; i < hitIndex; ++i) {
-        CallRecord record = cs->stack[i];
-        // Modify spacesStr.
-        char *spaces = cs->spacesStr;
-        spaces[i] = '\0';
-        log(logFile, record.obj, record._cmd, spaces);
-        // Clean up spacesStr.
-        spaces[i] = ' ';
-      }
+    for (int i = cs->lastPrintedIndex + 1; i < hitIndex; ++i) {
+      CallRecord record = cs->stack[i];
+      // Modify spacesStr.
+      char *spaces = cs->spacesStr;
+      spaces[i] = '\0';
+      log(logFile, record.obj, record._cmd, spaces);
+      // Clean up spacesStr.
+      spaces[i] = ' ';
     }
     // Log the hit call.
     char *spaces = cs->spacesStr;
@@ -493,8 +491,8 @@ static inline void onNestedCall(ThreadCallStack *cs, arg_list &args) {
     CallRecord curRecord = cs->stack[curIndex];
     logObjectAndArgs(cs, logFile, curRecord.obj, curRecord._cmd, spaces, args);
     spaces[curIndex] = ' ';
-    // Don't need to set the lastPrintedIndex as it is only useful on the first hit, which has
-    // already occurred. 
+    // Lastly, set the lastPrintedIndex.
+    cs->lastPrintedIndex = curIndex;
   }
 }
 
