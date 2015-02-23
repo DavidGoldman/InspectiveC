@@ -1,6 +1,5 @@
 #include "InspCWrapper.m"
 
-// TODO(DavidGoldman): Come up with a better example. This one's log is wayyyy toooo biggg.
 %ctor {
   // SBAppSwitcherController.
   /*
@@ -11,6 +10,8 @@
   */
   // watchClass(%c(SBAppSwitcherController));
   // watchObject(...);
+  setMaximumRelativeLoggingDepth(4);
+
   watchSelector(@selector(_rebuildAppListCache));
   watchSelector(@selector(_destroyAppListCache));
   watchSelector(@selector(_cacheAppList));

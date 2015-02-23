@@ -5,12 +5,15 @@
  */
 #include <dlfcn.h>
 
+typedef void (*inspectiveC_IntFuncT)(int depth);
 typedef void (*inspectiveC_ObjectFuncT)(id obj);
 typedef void (*inspectiveC_ClassFuncT)(Class clazz);
 typedef void (*inspectiveC_SelFuncT)(SEL _cmd);
 typedef void (*inspectiveC_voidFuncT)(void);
 
 static void *inspectiveC_Handle = NULL;
+
+static inspectiveC_IntFuncT $setMaximumRelativeLoggingDepth;
 
 static inspectiveC_ObjectFuncT $watchObject;
 static inspectiveC_ObjectFuncT $unwatchObject;
@@ -38,6 +41,8 @@ static void inspectiveC_init() {
       inspectiveC_Handle = dlopen("/usr/lib/libinspectivec.dylib", RTLD_NOW);
 
       if (inspectiveC_Handle) {
+        $setMaximumRelativeLoggingDepth = (inspectiveC_IntFuncT)inspectiveC_loadFunctionNamed("InspectiveC_setMaximumRelativeLoggingDepth");
+
         $watchObject = (inspectiveC_ObjectFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchObject");
         $unwatchObject = (inspectiveC_ObjectFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchObject");
 
@@ -53,6 +58,13 @@ static void inspectiveC_init() {
         NSLog(@"[InspectiveC Wrapper] Unable to load libinspectivec! Error: %s", dlerror());
       }
   });
+}
+
+void setMaximumRelativeLoggingDepth(int depth) {
+  inspectiveC_init();
+  if($setMaximumRelativeLoggingDepth) {
+    $setMaximumRelativeLoggingDepth(depth);
+  }
 }
 
 void watchObject(id obj) {
