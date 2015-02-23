@@ -48,6 +48,9 @@ Include **InspCWrapper.m** in your Tweak file. You should probably use a DEBUG g
 Then use the following API:
 
 ```c
+// Set the maximum logging depth after a hit.
+void setMaximumRelativeLoggingDepth(int depth);
+
 // Watches/unwatches the specified object. Objects will be automatically unwatched when they
 // receive a -|dealloc| message.
 void watchObject(id obj);
@@ -81,6 +84,9 @@ Then include InspectiveC.h in your tweak and use those functions.
 
 InspectiveC.h headlines the following API:
 ```c
+// Set the maximum logging depth after a hit.
+void InspectiveC_setMaximumRelativeLoggingDepth(int depth);
+
 // Watches/unwatches the specified object. Objects will be automatically unwatched when they
 // receive a -|dealloc| message.
 void InspectiveC_watchObject(id obj);

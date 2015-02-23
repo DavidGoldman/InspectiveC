@@ -114,6 +114,12 @@ typedef struct ThreadCallStack_ {
 
 // Inspective C Public API.
 
+extern "C" void InspectiveC_setMaximumRelativeLoggingDepth(int depth) {
+  if (depth >= 0) {
+    maxRelativeRecursiveDepth = depth;
+  }
+}
+
 #ifdef MAIN_THREAD_ONLY
 
 extern "C" void InspectiveC_watchObject(id obj) {

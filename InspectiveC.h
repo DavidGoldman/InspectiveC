@@ -7,6 +7,9 @@
 extern "C" {
 #endif
 
+// Set the maximum logging depth after a hit.
+void InspectiveC_setMaximumRelativeLoggingDepth(int depth);
+
 // Watches/unwatches the specified object. Objects will be automatically unwatched when they
 // receive a -|dealloc| message.
 void InspectiveC_watchObject(id obj);
