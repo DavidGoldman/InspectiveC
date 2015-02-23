@@ -20,6 +20,8 @@
 #define DEFAULT_CALLSTACK_DEPTH 128
 #define CALLSTACK_DEPTH_INCREMENT 64
 
+#define DEFAULT_MAX_RELATIVE_RECURSIVE_DESCENT_DEPTH 64
+
 #define RLOCK pthread_rwlock_rdlock(&lock)
 #define WLOCK pthread_rwlock_wrlock(&lock)
 #define UNLOCK pthread_rwlock_unlock(&lock)
@@ -47,6 +49,9 @@ static HashMapRef classSet;
 static HashMapRef selsSet;
 static pthread_key_t threadKey;
 static const char *directory;
+
+// Max callstack depth to log after the last hit.
+static int maxRelativeRecursiveDepth = DEFAULT_MAX_RELATIVE_RECURSIVE_DESCENT_DEPTH;
 
 #ifndef MAIN_THREAD_ONLY
 static pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
@@ -91,6 +96,7 @@ typedef struct CallRecord_ {
   id obj;
   SEL _cmd;
   uintptr_t lr;
+  int prevHitIndex; // Only used if isWatchHit is set.
   char isWatchHit;
 } CallRecord;
 
@@ -102,6 +108,7 @@ typedef struct ThreadCallStack_ {
   int index;
   int numWatchHits;
   int lastPrintedIndex;
+  int lastHitIndex;
   char isLoggingEnabled;
 } ThreadCallStack;
 
@@ -240,6 +247,7 @@ extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
 #endif
 
 static inline ThreadCallStack * getThreadCallStack();
+
 // Semi Public API - used to temporarily disable logging.
 
 extern "C" void InspectiveC_enableLogging() {
@@ -300,7 +308,7 @@ static inline ThreadCallStack * getThreadCallStack() {
     cs->spacesStr[DEFAULT_CALLSTACK_DEPTH] = '\0';
     cs->stack = (CallRecord *)calloc(DEFAULT_CALLSTACK_DEPTH, sizeof(CallRecord));
     cs->allocatedLength = DEFAULT_CALLSTACK_DEPTH;
-    cs->index = cs->lastPrintedIndex = -1;
+    cs->index = cs->lastPrintedIndex = cs->lastHitIndex = -1;
     cs->numWatchHits = 0;
     pthread_setspecific(threadKey, cs);
   }
@@ -446,6 +454,8 @@ static inline void onWatchHit(ThreadCallStack *cs, arg_list &args) {
   const int hitIndex = cs->index;
   CallRecord *hitRecord = &cs->stack[hitIndex];
   hitRecord->isWatchHit = 1;
+  hitRecord->prevHitIndex = cs->lastHitIndex;
+  cs->lastHitIndex = hitIndex;
   ++cs->numWatchHits;
 
   FILE *logFile = cs->file;
@@ -476,7 +486,7 @@ static inline void onWatchHit(ThreadCallStack *cs, arg_list &args) {
 static inline void onNestedCall(ThreadCallStack *cs, arg_list &args) {
   const int curIndex = cs->index;
   FILE *logFile = cs->file;
-  if (logFile) {
+  if (logFile && (curIndex - cs->lastHitIndex) <= maxRelativeRecursiveDepth) {
     // Log the current call.
     char *spaces = cs->spacesStr;
     spaces[curIndex] = '\0';
@@ -495,6 +505,7 @@ uintptr_t postObjc_msgSend() {
   CallRecord *record = popCallRecord(cs);
   if (record->isWatchHit) {
     --cs->numWatchHits;
+    cs->lastHitIndex = record->prevHitIndex;
   }
   if (cs->lastPrintedIndex > cs->index) {
     cs->lastPrintedIndex = cs->index;
