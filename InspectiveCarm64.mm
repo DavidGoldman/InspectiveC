@@ -71,7 +71,7 @@ static volatile void replacementObjc_msgSend() {
       "stp q2, q3, [sp, #-32]!\n"
       "stp q0, q1, [sp, #-32]!\n"
     // push {x0-x8, lr}
-      "stp x8, lr, [sp, #-16]!\n" // Not sure if x8 needed - push for alignment.
+      "stp x8, lr, [sp, #-16]!\n"
       "stp x6, x7, [sp, #-16]!\n"
       "stp x4, x5, [sp, #-16]!\n"
       "stp x2, x3, [sp, #-16]!\n"
@@ -105,7 +105,7 @@ static volatile void replacementObjc_msgSend() {
       "stp x2, x3, [sp, #-16]!\n"
       "stp x4, x5, [sp, #-16]!\n"
       "stp x6, x7, [sp, #-16]!\n"
-      "stp x8, x9, [sp, #-16]!\n" // not sure if needed - push for alignment.
+      "stp x8, x9, [sp, #-16]!\n" // Not sure if needed - push for alignment.
     // push {q0-q7}
       "stp q0, q1, [sp, #-32]!\n"
       "stp q2, q3, [sp, #-32]!\n"

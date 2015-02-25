@@ -58,7 +58,7 @@ int HMPut(HashMapRef hashMap, void *key, void *value);
 void * HMGet(HashMapRef hashMap, void *key);
 
 // Removes a key from the HashMap, returning the value removed, if any. Note that this may be called
-// when iterating through buckets!
+// when iterating through buckets if and only if you only remove the current key being iterated.
 void * HMRemove(HashMapRef hashMap, void *key);
 
 // Calls the function on all entries in the HashMap, in an arbitrary order.

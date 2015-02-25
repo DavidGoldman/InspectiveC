@@ -209,7 +209,7 @@ void * HMGet(HashMapRef hashMap, void *key) {
 }
 
 // Removes a key from the HashMap, returning the value removed, if any. Note that this may be called
-// when iterating through buckets!
+// when iterating through buckets if and only if you only remove the current key being iterated.
 void * HMRemove(HashMapRef hashMap, void *key) {
   HashBucket *bucket = hm_remove_bucket(hashMap, key);
   if (bucket) {
