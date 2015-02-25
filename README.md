@@ -9,6 +9,13 @@ Logs output to **/var/mobile/Documents/InspectiveC** or **/var/mobile/Containers
 
 **You can download the deb from the stable_debs folder or from my [repo](http://apt.golddavid.com/).**
 
+**Description:**
+
+This is an inspection tool that you can use to log Objective-C message hierarchies. It can currently
+watch specific objects, all objects of a given class, and specific selectors. It is indeed
+compatible with arm64 - in fact, it is more full-featured on arm64 as arm32 has obj_msgSend[st|fp]ret
+which are currently not hooked.
+
 **Features:**
 * arm64 support (and arm32)
 * Watch specific objects
