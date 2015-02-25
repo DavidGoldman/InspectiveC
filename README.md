@@ -32,6 +32,40 @@ which are currently not hooked.
   * Reduce redundancy
   * Better multithreading performance
 
+**Example Output:**
+
+```
+***-|SpringBoard@<0x15455d320> _run|***
+  +|NSAutoreleasePool alloc|
+    +|NSAutoreleasePool allocWithZone:| NULL
+  -|NSAutoreleasePool@<0x170442a00> init|
+  -|SpringBoard@<0x15455d320> _accessibilityInit|
+    -|SpringBoard@<0x15455d320> performSelector:withObject:afterDelay:| @selector(_accessibilitySetUpQuickSpeak) nil 1.5
+      +|NSArray arrayWithObject:| @"kCFRunLoopDefaultMode"
+      -|SpringBoard@<0x15455d320> performSelector:withObject:afterDelay:inModes:| @selector(_accessibilitySetUpQuickSpeak) nil 1.5 <__NSArrayI@0x174233560>
+    -|SpringBoard@<0x15455d320> _updateAccessibilitySettingsLoader|
+      +|NSBundle mainBundle|
+      -|NSBundle@<0x17009f310> bundleIdentifier|
+      -|__NSCFString@<0x1740557b0> isEqualToString:| @"com.apple.PreBoard"
+      -|__NSStackBlock__@<0x16fdb7608> copy|
+      +|CFPrefsSearchListSource withSearchListForIdentifier:container:perform:| 0x19819f3b0 NULL <__NSStackBlock__@0x16fdb7570>
+      +|NSNumber class|
+      -|__NSCFBoolean@<0x194d4ab70> isKindOfClass:| [NSNumber class]
+      -|__NSCFBoolean@<0x194d4ab70> boolValue|
+      -|__NSCFBoolean@<0x194d4ab70> release|
+    -|SpringBoard@<0x15455d320> _updateApplicationAccessibility|
+      +|NSBundle mainBundle|
+      -|NSBundle@<0x17009f310> bundleIdentifier|
+      -|__NSCFString@<0x1740557b0> isEqualToString:| @"com.apple.PreBoard"
+      -|__NSStackBlock__@<0x16fdb75f8> copy|
+      +|CFPrefsSearchListSource withSearchListForIdentifier:container:perform:| 0x19819f3b0 NULL <__NSStackBlock__@0x16fdb7560>
+      +|NSNumber class|
+      -|__NSCFNumber@<0xb000000000000003> isKindOfClass:| [NSNumber class]
+      -|__NSCFNumber@<0xb000000000000003> boolValue|
+      -|__NSCFNumber@<0xb000000000000003> release|
+    -|SpringBoard@<0x15455d320> _updateLargeTextNotification|...
+```
+
 **Usage:**
 
 Properly [install theos](http://iphonedevwiki.net/index.php/Theos/Setup) and grab yourself a copy
