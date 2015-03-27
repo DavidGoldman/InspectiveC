@@ -1,10 +1,10 @@
 ARCHS = armv7 arm64
-TARGET = iphone:8.1:8.1
+TARGET = iphone:8.2:8.2
 ADDITIONAL_OBJCFLAGS = -fobjc-exceptions
 # ADDITIONAL_OBJCFLAGS += -S
 
 LIBRARY_NAME = libinspectivec
-libinspectivec_FILES = hashmap.mm logging.mm InspectiveC.mm
+libinspectivec_FILES = hashmap.mm logging.mm blocks.mm InspectiveC.mm
 libinspectivec_LIBRARIES = substrate
 libinspectivec_FRAMEWORKS = Foundation UIKit
 

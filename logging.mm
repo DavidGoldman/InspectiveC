@@ -2,7 +2,10 @@
 
 #include <objc/runtime.h>
 
+#include "blocks.h"
+
 static Class NSString_Class = objc_getClass("NSString");
+static Class NSBlock_Class = objc_getClass("NSBlock");
 
 static inline void logNSStringForStruct(FILE *file, NSString *str) {
   fprintf(file, "%s", [str UTF8String]);
@@ -33,6 +36,10 @@ void logObject(FILE *file, id obj) {
   }
   if (isKindOfClass(kind, NSString_Class)) {
     logNSString(file, obj);
+    return;
+  }
+  if (isKindOfClass(kind, NSBlock_Class)) {
+    logBlock(file, obj);
     return;
   }
   fprintf(file, "<%s@0x%08lx>", class_getName(kind), reinterpret_cast<uintptr_t>(obj));
