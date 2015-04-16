@@ -110,6 +110,7 @@ typedef struct ThreadCallStack_ {
   int lastPrintedIndex;
   int lastHitIndex;
   char isLoggingEnabled;
+  char isCompleteLoggingEnabled;
 } ThreadCallStack;
 
 // Inspective C Public API.
@@ -254,6 +255,17 @@ extern "C" void InspectiveC_unwatchSelector(SEL _cmd) {
 
 static inline ThreadCallStack * getThreadCallStack();
 
+// Enables/disables logging every message.
+extern "C" void InspectiveC_enableCompleteLogging() {
+  ThreadCallStack *cs = getThreadCallStack();
+  cs->isCompleteLoggingEnabled = 1;
+}
+
+extern "C" void InspectiveC_disableCompleteLogging() {
+  ThreadCallStack *cs = getThreadCallStack();
+  cs->isCompleteLoggingEnabled = 0;
+}
+
 // Semi Public API - used to temporarily disable logging.
 
 extern "C" void InspectiveC_enableLogging() {
@@ -309,6 +321,7 @@ static inline ThreadCallStack * getThreadCallStack() {
     cs->file = newFileForThread();
 #endif
     cs->isLoggingEnabled = (cs->file != NULL);
+    cs->isCompleteLoggingEnabled = 0;
     cs->spacesStr = (char *)malloc(DEFAULT_CALLSTACK_DEPTH + 1);
     memset(cs->spacesStr, ' ', DEFAULT_CALLSTACK_DEPTH);
     cs->spacesStr[DEFAULT_CALLSTACK_DEPTH] = '\0';
@@ -490,7 +503,8 @@ static inline void onWatchHit(ThreadCallStack *cs, arg_list &args) {
 static inline void onNestedCall(ThreadCallStack *cs, arg_list &args) {
   const int curIndex = cs->index;
   FILE *logFile = cs->file;
-  if (logFile && (curIndex - cs->lastHitIndex) <= maxRelativeRecursiveDepth) {
+  if (logFile && 
+     (cs->isCompleteLoggingEnabled || (curIndex - cs->lastHitIndex) <= maxRelativeRecursiveDepth)) {
     // Log the current call.
     char *spaces = cs->spacesStr;
     spaces[curIndex] = '\0';

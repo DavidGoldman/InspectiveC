@@ -27,6 +27,9 @@ static inspectiveC_SelFuncT $unwatchSelector;
 static inspectiveC_voidFuncT $enableLogging;
 static inspectiveC_voidFuncT $disableLogging;
 
+static inspectiveC_voidFuncT $enableCompleteLogging;
+static inspectiveC_voidFuncT $disableCompleteLogging;
+
 static void * inspectiveC_loadFunctionNamed(const char *name) {
   void *func = dlsym(inspectiveC_Handle, name);
   if (!func) {
@@ -54,6 +57,9 @@ static void inspectiveC_init() {
 
         $enableLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_enableLogging");
         $disableLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_disableLogging");
+
+        $enableCompleteLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_enableCompleteLogging");
+        $disableCompleteLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_disableCompleteLogging");
       } else {
         NSLog(@"[InspectiveC Wrapper] Unable to load libinspectivec! Error: %s", dlerror());
       }
@@ -116,5 +122,19 @@ void disableLogging() {
   inspectiveC_init();
   if ($disableLogging) {
     $disableLogging();
+  }
+}
+
+void InspectiveC_enableCompleteLogging() {
+  inspectiveC_init();
+  if ($enableCompleteLogging) {
+    $enableCompleteLogging();
+  }
+}
+
+void InspectiveC_disableCompleteLogging() {
+  inspectiveC_init();
+  if ($disableCompleteLogging) {
+    $disableCompleteLogging();
   }
 }

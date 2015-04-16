@@ -27,6 +27,10 @@ void InspectiveC_unwatchSelector(SEL _cmd);
 void InspectiveC_enableLogging();
 void InspectiveC_disableLogging();
 
+// Enables/disables logging every message.
+void InspectiveC_enableCompleteLogging();
+void InspectiveC_disableCompleteLogging();
+
 #if __cplusplus
 }
 #endif

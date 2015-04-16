@@ -28,7 +28,7 @@ struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, struct Re
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
       onWatchHit(cs, args);
-    } else if (cs->numWatchHits > 0) {
+    } else if (cs->numWatchHits > 0 || cs->isCompleteLoggingEnabled) {
       onNestedCall(cs, args);
     }
   }
@@ -48,7 +48,7 @@ struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, struct Re
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
       onWatchHit(cs, args);
-    } else if (cs->numWatchHits > 0) {
+    } else if (cs->numWatchHits > 0 || cs->isCompleteLoggingEnabled) {
       onNestedCall(cs, args);
     }
   }

@@ -19,7 +19,7 @@ uintptr_t preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, va_list args) {
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
       onWatchHit(cs, args);
-    } else if (cs->numWatchHits > 0) {
+    } else if (cs->numWatchHits > 0 || cs->isCompleteLoggingEnabled) {
       onNestedCall(cs, args);
     }
   }
@@ -39,7 +39,7 @@ uintptr_t preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, va_list args) {
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
       onWatchHit(cs, args);
-    } else if (cs->numWatchHits > 0) {
+    } else if (cs->numWatchHits > 0 || cs->isCompleteLoggingEnabled) {
       onNestedCall(cs, args);
     }
   }
