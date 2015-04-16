@@ -125,14 +125,14 @@ void disableLogging() {
   }
 }
 
-void InspectiveC_enableCompleteLogging() {
+void enableCompleteLogging() {
   inspectiveC_init();
   if ($enableCompleteLogging) {
     $enableCompleteLogging();
   }
 }
 
-void InspectiveC_disableCompleteLogging() {
+void disableCompleteLogging() {
   inspectiveC_init();
   if ($disableCompleteLogging) {
     $disableCompleteLogging();
