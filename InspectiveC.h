@@ -27,7 +27,7 @@ void InspectiveC_unwatchSelector(SEL _cmd);
 void InspectiveC_enableLogging();
 void InspectiveC_disableLogging();
 
-// Enables/disables logging every message.
+// Enables/disables logging every message for the current thread.
 void InspectiveC_enableCompleteLogging();
 void InspectiveC_disableCompleteLogging();
 

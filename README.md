@@ -108,6 +108,10 @@ void unwatchSelector(SEL _cmd);
 // Enables/disables logging for the current thread.
 void enableLogging();
 void disableLogging();
+
+// Enables/disables logging every message for the current thread.
+void enableCompleteLogging();
+void disableCompleteLogging(); 
 ```
 
 
@@ -144,4 +148,8 @@ void InspectiveC_unwatchSelector(SEL _cmd);
 // Enables/disables logging for the current thread.
 void InspectiveC_enableLogging();
 void InspectiveC_disableLogging();
+
+// Enables/disables logging every message for the current thread.
+void InspectiveC_enableCompleteLogging();
+void InspectiveC_disableCompleteLogging();
 ```
