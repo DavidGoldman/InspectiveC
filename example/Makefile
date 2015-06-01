@@ -1,5 +1,5 @@
 ARCHS = armv7 arm64
-TARGET = iphone:8.1:8.1
+TARGET = iphone:8.2:8.2
 include theos/makefiles/common.mk
 
 TWEAK_NAME = Example
