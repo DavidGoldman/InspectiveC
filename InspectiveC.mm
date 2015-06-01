@@ -364,23 +364,6 @@ static inline CallRecord * popCallRecord(ThreadCallStack *cs) {
   return &cs->stack[cs->index--];
 }
 
-static inline void log(FILE *file, id obj, SEL _cmd, char *spaces) {
-  Class kind = object_getClass(obj);
-  bool isMetaClass = class_isMetaClass(kind);
-  if (isMetaClass) {
-    fprintf(file, "%s%s+|%s %s|\n", spaces, spaces, class_getName(kind), sel_getName(_cmd));
-  } else {
-    fprintf(file, "%s%s-|%s %s| @<%p>\n", spaces, spaces, class_getName(kind), sel_getName(_cmd), (void *)obj);
-  }
-}
-
-// Returns orig_objc_msgSend in r0. Sadly I couldn't figure out a way to "blx orig_objc_msgSend"
-// and moving this directly inside the replacementObjc_msgSend method generates assembly that
-// overrides r0 before can we push it... without this you're gonna have a bad time. 
-uintptr_t getOrigObjc_msgSend() {
-  return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
-}
-
 static inline BOOL isKindOfClass(Class selfClass, Class clazz) {
   for (Class candidate = selfClass; candidate; candidate = class_getSuperclass(candidate)) {
     if (candidate == clazz) {
@@ -394,20 +377,39 @@ static inline BOOL classSupportsArbitraryPointerTypes(Class clazz) {
   return isKindOfClass(clazz, NSMapTable_Class) || isKindOfClass(clazz, NSHashTable_Class);
 }
 
-static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, arg_list &args) {
+static inline void log(FILE *file, id obj, SEL _cmd, char *spaces) {
   Class kind = object_getClass(obj);
   bool isMetaClass = class_isMetaClass(kind);
-  Method method = class_getInstanceMethod(kind, _cmd);
+  if (isMetaClass) {
+    fprintf(file, "%s%s+|%s %s|\n", spaces, spaces, class_getName(kind), sel_getName(_cmd));
+  } else {
+    fprintf(file, "%s%s-|%s %s| @<%p>\n", spaces, spaces, class_getName(kind), sel_getName(_cmd), (void *)obj);
+  }
+}
 
+static inline void logWithArgs(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces,
+    arg_list &args, Class kind, BOOL isMetaClass, BOOL isWatchHit) {
+  Method method = (isMetaClass) ? class_getClassMethod(kind, _cmd) : class_getInstanceMethod(kind, _cmd);
   if (method) {
-    if (isMetaClass) {
-      fprintf(file, "%s%s***+|%s %s|", spaces, spaces, class_getName(kind), sel_getName(_cmd));
+    const char *normalFormatStr;
+    const char *metaClassFormatStr;
+
+    if (isWatchHit) {
+      normalFormatStr = "***%s%s-|%s@<%p> %s|";
+      metaClassFormatStr = "***%s%s+|%s %s|";
     } else {
-      fprintf(file, "%s%s***-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
+      normalFormatStr = "%s%s-|%s@<%p> %s|";
+      metaClassFormatStr = "%s%s+|%s %s|";
+    }
+
+    if (isMetaClass) {
+      fprintf(file, metaClassFormatStr, spaces, spaces, class_getName(kind), sel_getName(_cmd));
+    } else {
+      fprintf(file, normalFormatStr, spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
     }
     const char *typeEncoding = method_getTypeEncoding(method);
     if (!typeEncoding || classSupportsArbitraryPointerTypes(kind)) {
-      fprintf(file, " ~NO ENCODING~***\n");
+      fprintf(file, (isWatchHit) ? " ~NO ENCODING~***\n" : " ~NO ENCODING~\n");
       return;
     }
 
@@ -426,47 +428,32 @@ static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _c
     } @catch(NSException *e) {
       fprintf(file, "~BAD ENCODING~");
     }
-    fprintf(file, "***\n");
+    fprintf(file, (isWatchHit) ? "***\n" : "\n");
     cs->isLoggingEnabled = 1;
   }
 }
 
+// Returns orig_objc_msgSend in r0. Sadly I couldn't figure out a way to "blx orig_objc_msgSend"
+// and moving this directly inside the replacementObjc_msgSend method generates assembly that
+// overrides r0 before can we push it... without this you're gonna have a bad time. 
+uintptr_t getOrigObjc_msgSend() {
+  return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
+}
+
+static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, arg_list &args) {
+  Class kind = object_getClass(obj);
+  BOOL isMetaClass = class_isMetaClass(kind);
+
+  logWithArgs(cs, file, obj, _cmd, spaces, args, kind, isMetaClass, YES);
+}
+
 static inline void logObjectAndArgs(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, arg_list &args) {
+
   // Call [<obj> class] to make sure the class is initialized.
   Class kind = ((Class (*)(id, SEL))orig_objc_msgSend)(obj, class_SEL);
-  bool isMetaClass = (kind == obj);
+  BOOL isMetaClass = (kind == obj);
 
-  Method method = (isMetaClass) ? class_getClassMethod(kind, _cmd) : class_getInstanceMethod(kind, _cmd);
-  if (method) {
-    if (isMetaClass) {
-      fprintf(file, "%s%s+|%s %s|", spaces, spaces, class_getName(kind), sel_getName(_cmd));
-    } else {
-      fprintf(file, "%s%s-|%s@<%p> %s|", spaces, spaces, class_getName(kind), (void *)obj, sel_getName(_cmd));
-    }
-    const char *typeEncoding = method_getTypeEncoding(method);
-    if (!typeEncoding || classSupportsArbitraryPointerTypes(kind)) {
-      fprintf(file, " ~NO ENCODING~\n");
-      return;
-    }
-
-    cs->isLoggingEnabled = 0;
-    @try {
-      NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
-      const NSUInteger numberOfArguments = [signature numberOfArguments];
-      for (NSUInteger index = 2; index < numberOfArguments; ++index) {
-        const char *type = [signature getArgumentTypeAtIndex:index];
-        fprintf(file, " ");
-        if (!logArgument(file, type, args)) { // Can't understand arg - probably a struct.
-          fprintf(file, "~BAIL on \"%s\"~", type);
-          break;
-        }
-      }
-    } @catch(NSException *e) {
-      fprintf(file, "~BAD ENCODING~");
-    }
-    fprintf(file, "\n");
-    cs->isLoggingEnabled = 1;
-  }
+  logWithArgs(cs, file, obj, _cmd, spaces, args, kind, isMetaClass, NO);
 }
 
 static inline void onWatchHit(ThreadCallStack *cs, arg_list &args) {
@@ -479,22 +466,28 @@ static inline void onWatchHit(ThreadCallStack *cs, arg_list &args) {
 
   FILE *logFile = cs->file;
   if (logFile) {
+
     // Log previous calls if necessary.
     for (int i = cs->lastPrintedIndex + 1; i < hitIndex; ++i) {
       CallRecord record = cs->stack[i];
+
       // Modify spacesStr.
       char *spaces = cs->spacesStr;
       spaces[i] = '\0';
       log(logFile, record.obj, record._cmd, spaces);
+
       // Clean up spacesStr.
       spaces[i] = ' ';
     }
+
     // Log the hit call.
     char *spaces = cs->spacesStr;
     spaces[hitIndex] = '\0';
     logWatchedHit(cs, logFile, hitRecord->obj, hitRecord->_cmd, spaces, args);
+
     // Clean up spacesStr.
     spaces[hitIndex] = ' ';
+
     // Lastly, set the lastPrintedIndex.
     cs->lastPrintedIndex = hitIndex;
   }
@@ -505,15 +498,56 @@ static inline void onNestedCall(ThreadCallStack *cs, arg_list &args) {
   FILE *logFile = cs->file;
   if (logFile && 
      (cs->isCompleteLoggingEnabled || (curIndex - cs->lastHitIndex) <= maxRelativeRecursiveDepth)) {
+
     // Log the current call.
     char *spaces = cs->spacesStr;
     spaces[curIndex] = '\0';
     CallRecord curRecord = cs->stack[curIndex];
     logObjectAndArgs(cs, logFile, curRecord.obj, curRecord._cmd, spaces, args);
     spaces[curIndex] = ' ';
+
     // Lastly, set the lastPrintedIndex.
     cs->lastPrintedIndex = curIndex;
   }
+}
+
+static inline void preObjc_msgSend_common(id self, uintptr_t lr, SEL _cmd, ThreadCallStack *cs, arg_list &args) {
+#ifdef MAIN_THREAD_ONLY
+  if (self && pthread_main_np() && cs->isLoggingEnabled) {
+    Class clazz = object_getClass(self);
+    int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
+    int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
+    int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
+    if (isWatchedObject && _cmd == @selector(dealloc)) {
+      HMRemove(objectsSet, (void *)self);
+    }
+    if (isWatchedObject || isWatchedClass || isWatchedSel) {
+      onWatchHit(cs, args);
+    } else if (cs->numWatchHits > 0 || cs->isCompleteLoggingEnabled) {
+      onNestedCall(cs, args);
+    }
+  }
+#else
+  if (self && cs->isLoggingEnabled) {
+    Class clazz = object_getClass(self);
+    RLOCK;
+    // Critical section - check for hits.
+    int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
+    int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
+    int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
+    UNLOCK;
+    if (isWatchedObject && _cmd == @selector(dealloc)) {
+      WLOCK;
+      HMRemove(objectsSet, (void *)self);
+      UNLOCK;
+    }
+    if (isWatchedObject || isWatchedClass || isWatchedSel) {
+      onWatchHit(cs, args);
+    } else if (cs->numWatchHits > 0 || cs->isCompleteLoggingEnabled) {
+      onNestedCall(cs, args);
+    }
+  }
+#endif
 }
 
 // Called in our replacementObjc_msgSend after calling the original objc_msgSend.

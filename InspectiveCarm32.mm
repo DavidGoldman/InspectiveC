@@ -8,42 +8,8 @@ uintptr_t preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, va_list args) {
   ThreadCallStack *cs = getThreadCallStack();
   pushCallRecord(self, lr, _cmd, cs);
 
-#ifdef MAIN_THREAD_ONLY
-  if (self && pthread_main_np() && cs->isLoggingEnabled) {
-    Class clazz = object_getClass(self);
-    int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
-    int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
-    int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
-    if (isWatchedObject && _cmd == @selector(dealloc)) {
-      HMRemove(objectsSet, (void *)self);
-    }
-    if (isWatchedObject || isWatchedClass || isWatchedSel) {
-      onWatchHit(cs, args);
-    } else if (cs->numWatchHits > 0 || cs->isCompleteLoggingEnabled) {
-      onNestedCall(cs, args);
-    }
-  }
-#else
-  if (self && cs->isLoggingEnabled) {
-    Class clazz = object_getClass(self);
-    RLOCK;
-    // Critical section - check for hits.
-    int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
-    int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
-    int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
-    UNLOCK;
-    if (isWatchedObject && _cmd == @selector(dealloc)) {
-      WLOCK;
-      HMRemove(objectsSet, (void *)self);
-      UNLOCK;
-    }
-    if (isWatchedObject || isWatchedClass || isWatchedSel) {
-      onWatchHit(cs, args);
-    } else if (cs->numWatchHits > 0 || cs->isCompleteLoggingEnabled) {
-      onNestedCall(cs, args);
-    }
-  }
-#endif
+  preObjc_msgSend_common(self, lr, _cmd, cs, args);
+
   return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
 }
 
