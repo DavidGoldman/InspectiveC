@@ -28,8 +28,7 @@ which are currently not hooked.
 * Hook obj_msgSend[st|fp]ret
 * More advanced filtering
 * Optimizations
-  * Nicer hooking
-  * Reduce redundancy
+  * Nicer hooking (i.e. remove getOrigObjc_msgSend)
   * Better multithreading performance
 
 **Example Output:**
