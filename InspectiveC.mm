@@ -395,8 +395,8 @@ static inline void logWithArgs(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd
     const char *metaClassFormatStr;
 
     if (isWatchHit) {
-      normalFormatStr = "***%s%s-|%s@<%p> %s|";
-      metaClassFormatStr = "***%s%s+|%s %s|";
+      normalFormatStr = "%s%s***-|%s@<%p> %s|";
+      metaClassFormatStr = "%s%s***+|%s %s|";
     } else {
       normalFormatStr = "%s%s-|%s@<%p> %s|";
       metaClassFormatStr = "%s%s+|%s %s|";
