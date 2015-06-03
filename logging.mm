@@ -42,51 +42,8 @@ void logObject(FILE *file, id obj) {
     logBlock(file, obj);
     return;
   }
-  fprintf(file, "<%s@0x%08lx>", class_getName(kind), reinterpret_cast<uintptr_t>(obj));
+  fprintf(file, "<%s@%p>", class_getName(kind), reinterpret_cast<void *>(obj));
 }
-
-#define pa_two_ints(args, varType, varName, intType) \
-  varType varName; \
-  if (args.ngrn < 7) { \
-    intType a = (intType)args.regs->general.arr[args.ngrn++]; \
-    intType b = (intType)args.regs->general.arr[args.ngrn++]; \
-    varName = (varType) { a, b }; \
-  } else { \
-    args.ngrn = 8; \
-    intType a = pa_stack_arg(args, intType); \
-    intType b = pa_stack_arg(args, intType); \
-    varName = (varType) { a, b }; \
-  } \
-
-#define pa_two_doubles(args, t, varName) \
-  t varName; \
-  if (args.nsrn < 7) { \
-    double a = args.regs->floating.arr[args.nsrn++].d.d1; \
-    double b = args.regs->floating.arr[args.nsrn++].d.d1; \
-    varName = (t) { a, b }; \
-  } else { \
-    args.nsrn = 8; \
-    double a = pa_stack_arg(args, double); \
-    double b = pa_stack_arg(args, double); \
-    varName = (t) { a, b }; \
-  } \
-
-#define pa_four_doubles(args, t, varName) \
-  t varName; \
-  if (args.nsrn < 5) { \
-    double a = args.regs->floating.arr[args.nsrn++].d.d1; \
-    double b = args.regs->floating.arr[args.nsrn++].d.d1; \
-    double c = args.regs->floating.arr[args.nsrn++].d.d1; \
-    double d = args.regs->floating.arr[args.nsrn++].d.d1; \
-    varName = (t) { a, b, c, d }; \
-  } else { \
-    args.nsrn = 8; \
-    double a = pa_stack_arg(args, double); \
-    double b = pa_stack_arg(args, double); \
-    double c = pa_stack_arg(args, double); \
-    double d = pa_stack_arg(args, double); \
-    varName = (t) { a, b, c, d }; \
-  } \
 
 #ifdef __arm64__
 

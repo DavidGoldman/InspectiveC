@@ -26,6 +26,49 @@
 #define pa_stack_arg(args, t) \
   (*(t *)( (args.stack = (unsigned char *)( ((uintptr_t)args.stack + (alignof(t) - 1)) & -alignof(t)) + sizeof(t)) - sizeof(t) ))
 
+#define pa_two_ints(args, varType, varName, intType) \
+  varType varName; \
+  if (args.ngrn < 7) { \
+    intType a = (intType)args.regs->general.arr[args.ngrn++]; \
+    intType b = (intType)args.regs->general.arr[args.ngrn++]; \
+    varName = (varType) { a, b }; \
+  } else { \
+    args.ngrn = 8; \
+    intType a = pa_stack_arg(args, intType); \
+    intType b = pa_stack_arg(args, intType); \
+    varName = (varType) { a, b }; \
+  } \
+
+#define pa_two_doubles(args, t, varName) \
+  t varName; \
+  if (args.nsrn < 7) { \
+    double a = args.regs->floating.arr[args.nsrn++].d.d1; \
+    double b = args.regs->floating.arr[args.nsrn++].d.d1; \
+    varName = (t) { a, b }; \
+  } else { \
+    args.nsrn = 8; \
+    double a = pa_stack_arg(args, double); \
+    double b = pa_stack_arg(args, double); \
+    varName = (t) { a, b }; \
+  } \
+
+#define pa_four_doubles(args, t, varName) \
+  t varName; \
+  if (args.nsrn < 5) { \
+    double a = args.regs->floating.arr[args.nsrn++].d.d1; \
+    double b = args.regs->floating.arr[args.nsrn++].d.d1; \
+    double c = args.regs->floating.arr[args.nsrn++].d.d1; \
+    double d = args.regs->floating.arr[args.nsrn++].d.d1; \
+    varName = (t) { a, b, c, d }; \
+  } else { \
+    args.nsrn = 8; \
+    double a = pa_stack_arg(args, double); \
+    double b = pa_stack_arg(args, double); \
+    double c = pa_stack_arg(args, double); \
+    double d = pa_stack_arg(args, double); \
+    varName = (t) { a, b, c, d }; \
+  } \
+
 typedef union FPReg_ {
   __int128_t q;
   struct {
