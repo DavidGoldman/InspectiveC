@@ -83,7 +83,7 @@ bool logArgument(FILE *file, const char *type, arg_list &args) {
         if (value == NULL) {
           fprintf(file, "NULL");
         } else {
-          fprintf(file, "0x%08lx", reinterpret_cast<uintptr_t>(value));
+          fprintf(file, "%p", value);
         }
       } break;
       case 'B': { // A C++ bool or a C99 _Bool.
