@@ -46,7 +46,6 @@ void logObject(FILE *file, id obj) {
 }
 
 #ifndef __arm64__
-
 static float float_from_va_list(va_list &args) {
   union {
     uint32_t i;
@@ -54,7 +53,6 @@ static float float_from_va_list(va_list &args) {
   } value = {va_arg(args, uint32_t)};
   return value.f;
 }
-
 #endif
 
 // Heavily based/taken from AspectiveC by saurik.
@@ -120,6 +118,7 @@ bool logArgument(FILE *file, const char *type, arg_list &args) {
         unsigned int value = pa_arg(args, unsigned int);
         fprintf(file, "%u", value);
       } break;
+#ifdef __arm64__
       case 'l': { // A long - treated as a 32-bit quantity on 64-bit programs.
         int value = pa_arg(args, int);
         fprintf(file, "%d", value);
@@ -128,6 +127,16 @@ bool logArgument(FILE *file, const char *type, arg_list &args) {
         unsigned int value = pa_arg(args, unsigned int);
         fprintf(file, "%u", value);
       } break;
+#else
+      case 'l': { // A long.
+        long value = pa_arg(args, long);
+        fprintf(file, "%ld", value);
+      } break;
+      case 'L': { // An unsigned long.
+        unsigned long value = pa_arg(args, unsigned long);
+        fprintf(file, "%lu", value);
+      } break;
+#endif
       case 'q': { // A long long.
         long long value = pa_arg(args, long long);
         fprintf(file, "%lld", value);
