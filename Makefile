@@ -4,7 +4,7 @@ ADDITIONAL_OBJCFLAGS = -fobjc-exceptions
 # ADDITIONAL_OBJCFLAGS += -S
 
 LIBRARY_NAME = libinspectivec
-libinspectivec_FILES = hashmap.mm logging.mm blocks.mm InspectiveC.mm
+libinspectivec_FILES = hashmap.mm logging.mm blocks.mm types.mm InspectiveC.mm
 libinspectivec_LIBRARIES = substrate
 libinspectivec_FRAMEWORKS = Foundation UIKit
 

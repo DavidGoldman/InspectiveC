@@ -1,36 +1,6 @@
 #include "types.h"
 
-typedef NS_ENUM(NSInteger, InspectiveCType) {
-  InspectiveCTypeNone = 0, // v (a void) is considered None.
-  InspectiveCTypeUnknown,
-  InspectiveCTypeChar,
-  InspectiveCTypeInt,
-  InspectiveCTypeShort,
-  InspectiveCTypeLong,
-  InspectiveCTypeLongLong,
-  InspectiveCTypeUChar,
-  InspectiveCTypeUInt,
-  InspectiveCTypeUShort,
-  InspectiveCTypeULong,
-  InspectiveCTypeULongLong,
-  InspectiveCTypeFloat,
-  InspectiveCTypeDouble,
-  InspectiveCTypeBool,
-  InspectiveCTypeCharString,
-  InspectiveCTypeObject,
-  InspectiveCTypeClass,
-  InspectiveCTypeSelector,
-  InspectiveCTypePointer,
-  InspectiveCTypeCGAffineTransform,
-  InspectiveCTypeCGPoint,
-  InspectiveCTypeCGRect,
-  InspectiveCTypeCGSize,
-  InspectiveCTypeUIEdgeInsets,
-  InspectiveCTypeUIOffset,
-  InspectiveCTypeNSRange
-};
-
-InspectiveCType InspectiveCType_parseFromObjCType(const char *objC_type) {
+InspectiveCType InspectiveCType_parseFromObjCType(const char *type) {
 loop:
   switch(*type) {
     case 'v': return InspectiveCTypeNone;
@@ -121,6 +91,6 @@ const char * InspectiveCType_toString(InspectiveCType type) {
     case InspectiveCTypeUIOffset: return "UIOffset";
     case InspectiveCTypeNSRange: return "NSRange";
   }
-  perrror("InspectiveCType_toString: Unknown type");
+  perror("InspectiveCType_toString: Unknown type");
   return "Unknown";
 }
