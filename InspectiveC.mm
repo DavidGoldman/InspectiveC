@@ -27,9 +27,22 @@
 #define UNLOCK pthread_rwlock_unlock(&lock)
 
 #if __arm64__
+
+#include "ARM64Types.h"
+
 #define arg_list pa_list
+#define ret_state RegState_
 #else
+
+struct RetState_ {
+  uintptr_t r0;
+  uintptr_t r1;
+  uintptr_t r2;
+  uintptr_t r3;
+};
+
 #define arg_list va_list
+#define ret_state RetState_
 #endif
 
 // The original objc_msgSend.
@@ -96,6 +109,7 @@ typedef struct CallRecord_ {
   id obj;
   SEL _cmd;
   uintptr_t lr;
+  char *methodReturnType;
   int prevHitIndex; // Only used if isWatchHit is set.
   char isWatchHit;
 } CallRecord;
@@ -357,6 +371,7 @@ static inline void pushCallRecord(id obj, uintptr_t lr, SEL _cmd, ThreadCallStac
   newRecord->obj = obj;
   newRecord->_cmd = _cmd;
   newRecord->lr = lr;
+  newRecord->methodReturnType = NULL;
   newRecord->isWatchHit = 0;
 }
 
@@ -413,9 +428,17 @@ static inline void logWithArgs(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd
       return;
     }
 
+    BOOL hasReturnType = NO;
+
     cs->isLoggingEnabled = 0;
     @try {
       NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:typeEncoding];
+
+      CallRecord *record = &cs->stack[cs->index];
+      char *methodReturnType = strdup([signature methodReturnType]);
+      record->methodReturnType = methodReturnType;
+      hasReturnType = (methodReturnType != NULL && *methodReturnType != 'v');
+
       const NSUInteger numberOfArguments = [signature numberOfArguments];
       for (NSUInteger index = 2; index < numberOfArguments; ++index) {
         const char *type = [signature getArgumentTypeAtIndex:index];
@@ -428,7 +451,12 @@ static inline void logWithArgs(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd
     } @catch(NSException *e) {
       fprintf(file, "~BAD ENCODING~");
     }
-    fprintf(file, (isWatchHit) ? "***\n" : "\n");
+
+    if (hasReturnType) {
+      fprintf(file, (isWatchHit) ? "*** {\n" : "{\n");
+    } else {
+      fprintf(file, (isWatchHit) ? "***\n" : "\n");
+    }
     cs->isLoggingEnabled = 1;
   }
 }
@@ -552,9 +580,21 @@ static inline void preObjc_msgSend_common(id self, uintptr_t lr, SEL _cmd, Threa
 
 // Called in our replacementObjc_msgSend after calling the original objc_msgSend.
 // This returns the lr in r0/x0.
-uintptr_t postObjc_msgSend() {
+uintptr_t postObjc_msgSend(struct ret_state *rs) {
   ThreadCallStack *cs = (ThreadCallStack *)pthread_getspecific(threadKey);
   CallRecord *record = popCallRecord(cs);
+
+  if (record->methodReturnType) {
+    const int curIndex = cs->index + 1;
+    char *spaces = cs->spacesStr;
+    spaces[curIndex] = '\0';
+    fprintf(cs->file, "%s%s}\n", spaces, spaces);
+    spaces[curIndex] = ' ';
+
+    free(record->methodReturnType);
+    record->methodReturnType = NULL;
+  }
+
   if (record->isWatchHit) {
     --cs->numWatchHits;
     cs->lastHitIndex = record->prevHitIndex;

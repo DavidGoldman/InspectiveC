@@ -96,7 +96,7 @@ struct RegState_ {
       uint64_t x6;
       uint64_t x7;
       uint64_t x8;
-      uint64_t lr;
+      uint64_t x9_or_lr; // lr if used in preObjc_msgSend; x9 if used in postObjc_msgSend.
     } regs;
   } general;
 

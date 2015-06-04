@@ -66,31 +66,32 @@ static volatile void replacementObjc_msgSend() {
       "b.eq Lpassthrough\n"
     // Call through to the original objc_msgSend.
       "blr x9\n"
-    // push {x0-x9}
-      "stp x0, x1, [sp, #-16]!\n"
-      "stp x2, x3, [sp, #-16]!\n"
-      "stp x4, x5, [sp, #-16]!\n"
-      "stp x6, x7, [sp, #-16]!\n"
-      "stp x8, x9, [sp, #-16]!\n" // Not sure if needed - push for alignment.
     // push {q0-q7}
-      "stp q0, q1, [sp, #-32]!\n"
-      "stp q2, q3, [sp, #-32]!\n"
-      "stp q4, q5, [sp, #-32]!\n"
       "stp q6, q7, [sp, #-32]!\n"
+      "stp q4, q5, [sp, #-32]!\n"
+      "stp q2, q3, [sp, #-32]!\n"
+      "stp q0, q1, [sp, #-32]!\n"
+    // push {x0-x9}
+      "stp x8, x9, [sp, #-16]!\n"
+      "stp x6, x7, [sp, #-16]!\n"
+      "stp x4, x5, [sp, #-16]!\n"
+      "stp x2, x3, [sp, #-16]!\n"
+      "stp x0, x1, [sp, #-16]!\n"
     // Call our postObjc_msgSend hook.
-      "bl __Z16postObjc_msgSendv\n"
+      "mov x0, sp\n"
+      "bl __Z16postObjc_msgSendP9RegState_\n"
       "mov lr, x0\n"
-    // pop {q0-q7}
-      "ldp q6, q7, [sp], #32\n"
-      "ldp q4, q5, [sp], #32\n"
-      "ldp q2, q3, [sp], #32\n"
-      "ldp q0, q1, [sp], #32\n"
     // pop {x0-x9}
-      "ldp x8, x9, [sp], #16\n"
-      "ldp x6, x7, [sp], #16\n"
-      "ldp x4, x5, [sp], #16\n"
-      "ldp x2, x3, [sp], #16\n"
       "ldp x0, x1, [sp], #16\n"
+      "ldp x2, x3, [sp], #16\n"
+      "ldp x4, x5, [sp], #16\n"
+      "ldp x6, x7, [sp], #16\n"
+      "ldp x8, x9, [sp], #16\n"
+    // pop {q0-q7}
+      "ldp q0, q1, [sp], #32\n"
+      "ldp q2, q3, [sp], #32\n"
+      "ldp q4, q5, [sp], #32\n"
+      "ldp q6, q7, [sp], #32\n"
       "ret\n"
 
     // Pass through to original objc_msgSend.

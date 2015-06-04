@@ -37,7 +37,8 @@ static void replacementObjc_msgSend() {
       "blx r12\n"
   // Call our postObjc_msgSend hook.
       "push {r0-r3}\n"
-      "blx __Z16postObjc_msgSendv\n"
+      "mov r0, sp\n"
+      "blx __Z16postObjc_msgSendP9RetState_\n"
       "mov lr, r0\n"
       "pop {r0-r3}\n"
       "bx lr\n"
