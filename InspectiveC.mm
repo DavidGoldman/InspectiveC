@@ -13,7 +13,7 @@
 #include "logging.h"
 
 // Optional - comment this out if you want to log on ALL threads (laggy due to rw-locks).
-// #define MAIN_THREAD_ONLY
+#define MAIN_THREAD_ONLY
 
 #define MAX_PATH_LENGTH 1024
 
