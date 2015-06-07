@@ -518,7 +518,11 @@ static inline BOOL selectorSetContainsSelector(HashMapRef selectorSet, SEL _cmd)
 }
 
 static inline void preObjc_msgSend_common(id self, uintptr_t lr, SEL _cmd, ThreadCallStack *cs, arg_list &args) {
+#ifdef MAIN_THREAD_ONLY
+  if (self && pthread_main_np() && cs->isLoggingEnabled) {
+#else
   if (self && cs->isLoggingEnabled) {
+#endif
     Class clazz = object_getClass(self);
     RLOCK;
     // Critical section - check for hits.
