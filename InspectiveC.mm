@@ -26,6 +26,8 @@
 #define WLOCK pthread_rwlock_wrlock(&lock)
 #define UNLOCK pthread_rwlock_unlock(&lock)
 
+#define WATCH_ALL_SELECTORS_SELECTOR NULL
+
 #if __arm64__
 #define arg_list pa_list
 #else
@@ -44,8 +46,8 @@ static Class NSHashTable_Class;
 // We have to call [<self> class] when logging to make sure that the class is initialized.
 static SEL class_SEL = @selector(class);
 
-static HashMapRef objectsSet;
-static HashMapRef classSet;
+static HashMapRef objectsMap;
+static HashMapRef classMap;
 static HashMapRef selsSet;
 static pthread_key_t threadKey;
 static const char *directory;
@@ -113,6 +115,29 @@ typedef struct ThreadCallStack_ {
   char isCompleteLoggingEnabled;
 } ThreadCallStack;
 
+static inline void mapAddSelector(HashMapRef map, id obj_or_class, SEL _cmd) {
+  HashMapRef selectorSet = (HashMapRef)HMGet(map, (void *)obj_or_class);
+  if (selectorSet == NULL) {
+    selectorSet = HMCreate(&pointerEquality, &pointerHash);
+    HMPut(map, (void *)obj_or_class, selectorSet);
+  }
+
+  HMPut(selectorSet, _cmd, (void *)YES);
+}
+
+static inline void mapDestroySelectorSet(HashMapRef map, id obj_or_class) {
+  HashMapRef selectorSet = (HashMapRef)HMRemove(map, (void *)obj_or_class);
+  if (selectorSet != NULL) {
+    HMFree(selectorSet);
+  }
+}
+
+static inline void selectorSetRemoveSelector(HashMapRef selectorSet, SEL _cmd) {
+  if (selectorSet != NULL) {
+    HMRemove(selectorSet, _cmd);
+  }
+}
+
 // Inspective C Public API.
 
 extern "C" void InspectiveC_setMaximumRelativeLoggingDepth(int depth) {
@@ -128,10 +153,10 @@ extern "C" void InspectiveC_watchObject(id obj) {
     return;
   }
   if (pthread_main_np()) {
-    HMPut(objectsSet, (void *)obj, (void *)obj);
+    mapAddSelector(objectsMap, obj, WATCH_ALL_SELECTORS_SELECTOR);
   } else {
     dispatch_async(dispatch_get_main_queue(), ^(){
-        HMPut(objectsSet, (void *)obj, (void *)obj);
+        mapAddSelector(objectsMap, obj, WATCH_ALL_SELECTORS_SELECTOR);
     });
   }
 }
@@ -140,10 +165,35 @@ extern "C" void InspectiveC_unwatchObject(id obj) {
     return;
   }
   if (pthread_main_np()) {
-    HMRemove(objectsSet, (void *)obj);
+    mapDestroySelectorSet(objectsMap, obj);
   } else {
     dispatch_async(dispatch_get_main_queue(), ^(){
-        HMRemove(objectsSet, (void *)obj);
+        mapDestroySelectorSet(objectsMap, obj);
+    });
+  }
+}
+
+extern "C" void InspectiveC_watchSelectorOnObject(id obj, SEL _cmd) {
+  if (obj == nil || _cmd == NULL) {
+    return;
+  }
+  if (pthread_main_np()) {
+    mapAddSelector(objectsMap, obj, _cmd);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        mapAddSelector(objectsMap, obj, _cmd);
+    });
+  }
+}
+extern "C" void InspectiveC_unwatchSelectorOnObject(id obj, SEL _cmd) {
+  if (obj == nil || _cmd == NULL) {
+    return;
+  }
+  if (pthread_main_np()) {
+    selectorSetRemoveSelector((HashMapRef)HMGet(objectsMap, obj), _cmd);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        selectorSetRemoveSelector((HashMapRef)HMGet(objectsMap, obj), _cmd);
     });
   }
 }
@@ -153,10 +203,10 @@ extern "C" void InspectiveC_watchInstancesOfClass(Class clazz) {
     return;
   }
   if (pthread_main_np()) {
-    HMPut(classSet, (void *)clazz, (void *)clazz);
+    mapAddSelector(classMap, clazz, WATCH_ALL_SELECTORS_SELECTOR);
   } else {
     dispatch_async(dispatch_get_main_queue(), ^(){
-        HMPut(classSet, (void *)clazz, (void *)clazz);
+        mapAddSelector(classMap, clazz, WATCH_ALL_SELECTORS_SELECTOR);
     });
   }
 }
@@ -165,10 +215,35 @@ extern "C" void InspectiveC_unwatchInstancesOfClass(Class clazz) {
     return;
   }
   if (pthread_main_np()) {
-    HMRemove(classSet, (void *)clazz);
+    mapDestroySelectorSet(classMap, clazz);
   } else {
     dispatch_async(dispatch_get_main_queue(), ^(){
-        HMRemove(classSet, (void *)clazz);
+        mapDestroySelectorSet(classMap, clazz);
+    });
+  }
+}
+
+extern "C" void InspectiveC_watchSelectorOnInstancesOfClass(Class clazz, SEL _cmd) {
+  if (clazz == nil || _cmd == NULL) {
+    return;
+  }
+  if (pthread_main_np()) {
+    mapAddSelector(classMap, clazz, _cmd);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        mapAddSelector(classMap, clazz, _cmd);
+    });
+  }
+}
+extern "C" void InspectiveC_unwatchSelectorOnInstancesOfClass(Class clazz, SEL _cmd) {
+  if (clazz == nil || _cmd == NULL) {
+    return;
+  }
+  if (pthread_main_np()) {
+    selectorSetRemoveSelector((HashMapRef)HMGet(classMap, clazz), _cmd);
+  } else {
+    dispatch_async(dispatch_get_main_queue(), ^(){
+        selectorSetRemoveSelector((HashMapRef)HMGet(classMap, clazz), _cmd);
     });
   }
 }
@@ -205,7 +280,7 @@ extern "C" void InspectiveC_watchObject(id obj) {
     return;
   }
   WLOCK;
-  HMPut(objectsSet, (void *)obj, (void *)obj);
+  mapAddSelector(objectsMap, obj, WATCH_ALL_SELECTORS_SELECTOR);
   UNLOCK;
 }
 extern "C" void InspectiveC_unwatchObject(id obj) {
@@ -213,7 +288,24 @@ extern "C" void InspectiveC_unwatchObject(id obj) {
     return;
   }
   WLOCK;
-  HMRemove(objectsSet, (void *)obj);
+  mapDestroySelectorSet(objectsMap, obj);
+  UNLOCK;
+}
+
+extern "C" void InspectiveC_watchSelectorOnObject(id obj, SEL _cmd) {
+  if (obj == nil || _cmd == NULL) {
+    return;
+  }
+  WLOCK;
+  mapAddSelector(objectsMap, obj, _cmd);
+  UNLOCK;
+}
+extern "C" void InspectiveC_unwatchSelectorOnObject(id obj, SEL _cmd) {
+  if (obj == nil || _cmd == NULL) {
+    return;
+  }
+  WLOCK;
+  selectorSetRemoveSelector((HashMapRef)HMGet(objectsMap, obj), _cmd);
   UNLOCK;
 }
 
@@ -222,7 +314,7 @@ extern "C" void InspectiveC_watchInstancesOfClass(Class clazz) {
     return;
   }
   WLOCK;
-  HMPut(classSet, (void *)clazz, (void *)clazz);
+  mapAddSelector(classMap, clazz, WATCH_ALL_SELECTORS_SELECTOR);
   UNLOCK;
 }
 extern "C" void InspectiveC_unwatchInstancesOfClass(Class clazz) {
@@ -230,7 +322,24 @@ extern "C" void InspectiveC_unwatchInstancesOfClass(Class clazz) {
     return;
   }
   WLOCK;
-  HMRemove(classSet, (void *)clazz);
+  mapDestroySelectorSet(classMap, clazz);
+  UNLOCK;
+}
+
+extern "C" void InspectiveC_watchSelectorOnInstancesOfClass(Class clazz, SEL _cmd) {
+  if (clazz == nil || _cmd == NULL) {
+    return;
+  }
+  WLOCK;
+  mapAddSelector(classMap, clazz, _cmd);
+  UNLOCK;
+}
+extern "C" void InspectiveC_unwatchSelectorOnInstancesOfClass(Class clazz, SEL _cmd) {
+  if (clazz == nil || _cmd == NULL) {
+    return;
+  }
+  WLOCK;
+  selectorSetRemoveSelector((HashMapRef)HMGet(classMap, clazz), _cmd);
   UNLOCK;
 }
 
@@ -511,15 +620,23 @@ static inline void onNestedCall(ThreadCallStack *cs, arg_list &args) {
   }
 }
 
+static inline BOOL selectorSetContainsSelector(HashMapRef selectorSet, SEL _cmd) {
+  if (selectorSet == NULL) {
+    return NO;
+  }
+  return HMGet(selectorSet, WATCH_ALL_SELECTORS_SELECTOR) != NULL || 
+      HMGet(selectorSet, _cmd) != NULL;
+}
+
 static inline void preObjc_msgSend_common(id self, uintptr_t lr, SEL _cmd, ThreadCallStack *cs, arg_list &args) {
 #ifdef MAIN_THREAD_ONLY
   if (self && pthread_main_np() && cs->isLoggingEnabled) {
     Class clazz = object_getClass(self);
-    int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
-    int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
-    int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
+    BOOL isWatchedObject = selectorSetContainsSelector((HashMapRef)HMGet(objectsMap, (void *)self), _cmd);
+    BOOL isWatchedClass = selectorSetContainsSelector((HashMapRef)HMGet(classMap, (void *)clazz), _cmd);
+    BOOL isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
     if (isWatchedObject && _cmd == @selector(dealloc)) {
-      HMRemove(objectsSet, (void *)self);
+      mapDestroySelectorSet(objectsMap, self);
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
       onWatchHit(cs, args);
@@ -532,13 +649,13 @@ static inline void preObjc_msgSend_common(id self, uintptr_t lr, SEL _cmd, Threa
     Class clazz = object_getClass(self);
     RLOCK;
     // Critical section - check for hits.
-    int isWatchedObject = (HMGet(objectsSet, (void *)self) != NULL);
-    int isWatchedClass = (HMGet(classSet, (void *)clazz) != NULL);
-    int isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
+    BOOL isWatchedObject = selectorSetContainsSelector(HMGet(objectsMap, (void *)self), _cmd);
+    BOOL isWatchedClass = selectorSetContainsSelector(HMGet(classMap, (void *)clazz), _cmd);
+    BOOL isWatchedSel = (HMGet(selsSet, (void *)_cmd) != NULL);
     UNLOCK;
     if (isWatchedObject && _cmd == @selector(dealloc)) {
       WLOCK;
-      HMRemove(objectsSet, (void *)self);
+      mapDestroySelectorSet(objectsMap, self);
       UNLOCK;
     }
     if (isWatchedObject || isWatchedClass || isWatchedSel) {
@@ -583,8 +700,8 @@ MSInitialize {
   NSMapTable_Class = [objc_getClass("NSMapTable") class];
   NSHashTable_Class = [objc_getClass("NSHashTable") class];
 
-  objectsSet = HMCreate(&pointerEquality, &pointerHash);
-  classSet = HMCreate(&pointerEquality, &pointerHash);
+  objectsMap = HMCreate(&pointerEquality, &pointerHash);
+  classMap = HMCreate(&pointerEquality, &pointerHash);
   selsSet = HMCreate(&pointerEquality, &pointerHash);
 
   MSHookFunction(&objc_msgSend, (id (*)(id, SEL, ...))&replacementObjc_msgSend, &orig_objc_msgSend);
