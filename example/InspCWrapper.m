@@ -10,6 +10,8 @@ typedef void (*inspectiveC_ObjectFuncT)(id obj);
 typedef void (*inspectiveC_ClassFuncT)(Class clazz);
 typedef void (*inspectiveC_SelFuncT)(SEL _cmd);
 typedef void (*inspectiveC_voidFuncT)(void);
+typedef void (*inspectiveC_ObjectSelFuncT)(id obj, SEL _cmd);
+typedef void (*inspectiveC_ClassSelFuncT)(Class clazz, SEL _cmd);
 
 static void *inspectiveC_Handle = NULL;
 
@@ -17,9 +19,13 @@ static inspectiveC_IntFuncT $setMaximumRelativeLoggingDepth;
 
 static inspectiveC_ObjectFuncT $watchObject;
 static inspectiveC_ObjectFuncT $unwatchObject;
+static inspectiveC_ObjectSelFuncT $watchSelectorOnObject;
+static inspectiveC_ObjectSelFuncT $unwatchSelectorOnObject;
 
 static inspectiveC_ClassFuncT $watchClass;
 static inspectiveC_ClassFuncT $unwatchClass;
+static inspectiveC_ClassSelFuncT $watchSelectorOnClass;
+static inspectiveC_ClassSelFuncT $unwatchSelectorOnClass;
 
 static inspectiveC_SelFuncT $watchSelector;
 static inspectiveC_SelFuncT $unwatchSelector;
@@ -48,9 +54,13 @@ static void inspectiveC_init() {
 
         $watchObject = (inspectiveC_ObjectFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchObject");
         $unwatchObject = (inspectiveC_ObjectFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchObject");
+        $watchSelectorOnObject = (inspectiveC_ObjectSelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchSelectorOnObject");
+        $unwatchSelectorOnObject = (inspectiveC_ObjectSelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchSelectorOnObject");
 
         $watchClass = (inspectiveC_ClassFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchInstancesOfClass");
         $unwatchClass = (inspectiveC_ClassFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchInstancesOfClass");
+        $watchSelectorOnClass = (inspectiveC_ClassSelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchSelectorOnInstancesOfClass");
+        $unwatchSelectorOnClass = (inspectiveC_ClassSelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchSelectorOnInstancesOfClass");
 
         $watchSelector = (inspectiveC_SelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_watchSelector");
         $unwatchSelector = (inspectiveC_SelFuncT)inspectiveC_loadFunctionNamed("InspectiveC_unwatchSelector");
@@ -85,6 +95,18 @@ void unwatchObject(id obj) {
     $unwatchObject(obj);
   }
 }
+void watchSelectorOnObject(id obj, SEL _cmd) {
+  inspectiveC_init();
+  if ($watchSelectorOnObject) {
+    $watchSelectorOnObject(obj, _cmd);
+  }
+}
+void unwatchSelectorOnObject(id obj, SEL _cmd) {
+  inspectiveC_init();
+  if ($unwatchSelectorOnObject) {
+    $unwatchSelectorOnObject(obj, _cmd);
+  }
+}
 
 void watchClass(Class clazz) {
   inspectiveC_init();
@@ -96,6 +118,18 @@ void unwatchClass(Class clazz) {
   inspectiveC_init();
   if ($unwatchClass) {
     $unwatchClass(clazz);
+  }
+}
+void watchSelectorOnClass(Class clazz, SEL _cmd) {
+  inspectiveC_init();
+  if ($watchSelectorOnClass) {
+    $watchSelectorOnClass(clazz, _cmd);
+  }
+}
+void unwatchSelectorOnClass(Class clazz, SEL _cmd) {
+  inspectiveC_init();
+  if ($unwatchSelectorOnClass) {
+    $unwatchSelectorOnClass(clazz, _cmd);
   }
 }
 
