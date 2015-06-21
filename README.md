@@ -24,6 +24,7 @@ which are currently not hooked.
 * Prints arguments
 
 **Hopeful Features (in no particular order):**
+* Support logging blocks/replaced C functions
 * Print retvals
 * Optimizations
   * Nicer hooking (i.e. remove getOrigObjc_msgSend)
@@ -72,6 +73,10 @@ assembly code.
 
 When you install the deb, you will find **libinspectivec.dylib** in /usr/lib. Copy this dylib into
 $THEOS/lib and then copy **InspectiveC.h** into $THEOS/include.
+
+**Option 0: Use InspectiveC with Cycript for maximum efficiency***
+
+TODO(DavidGoldman)
 
 **Option 1: Use the InspectiveC Wrapper**
 
