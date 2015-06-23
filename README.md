@@ -83,7 +83,7 @@ Be sure to install **Cycript on Cydia** and replace "SpringBoard" in the first c
 of the process that you want to inject into. Also, don't forget to **respring/kill the app** when
 you no longer want InspectiveC loaded.
 
-'''
+```
 // You can replace SpringBoard with whatever process name you want.
 root# cycript -p SpringBoard
 
@@ -97,7 +97,7 @@ cy# unwatchObject(choose(SBUIController)[0])
 cy# watchSelector(@selector(anySelectorYouWant))
 
 cy# watchClass([AnyClassYouWant class])
-'''
+```
 
 **Option 1: Use the InspectiveC Wrapper**
 
