@@ -1,30 +1,30 @@
-intFunc = @encode(void(int));
-objFunc = @encode(void(id));
-classFunc = @encode(void(Class));
-selFunc = @encode(void(SEL));
-voidFunc = @encode(void(void));
-objSelFunc = @encode(void(id, SEL));
-classSelFunc = @encode(void(Class, SEL));
+var intFunc = @encode(void(int));
+var objFunc = @encode(void(id));
+var classFunc = @encode(void(Class));
+var selFunc = @encode(void(SEL));
+var voidFunc = @encode(void(void));
+var objSelFunc = @encode(void(id, SEL));
+var classSelFunc = @encode(void(Class, SEL));
 
-handle = dlopen("/usr/lib/libinspectivec.dylib", RTLD_NOW);
+var handle = dlopen("/usr/lib/libinspectivec.dylib", RTLD_NOW);
 
-setMaximumRelativeLoggingDepth = intFunc(dlsym(handle, "InspectiveC_setMaximumRelativeLoggingDepth"));
+var setMaximumRelativeLoggingDepth = intFunc(dlsym(handle, "InspectiveC_setMaximumRelativeLoggingDepth"));
 
-watchObject = objFunc(dlsym(handle, "InspectiveC_watchObject"));
-unwatchObject = objFunc(dlsym(handle, "InspectiveC_unwatchObject"));
-watchSelectorOnObject = objSelFunc(dlsym(handle, "InspectiveC_watchSelectorOnObject"));
-unwatchSelectorOnObject = objSelFunc(dlsym(handle, "InspectiveC_unwatchSelectorOnObject"));
+var watchObject = objFunc(dlsym(handle, "InspectiveC_watchObject"));
+var unwatchObject = objFunc(dlsym(handle, "InspectiveC_unwatchObject"));
+var watchSelectorOnObject = objSelFunc(dlsym(handle, "InspectiveC_watchSelectorOnObject"));
+var unwatchSelectorOnObject = objSelFunc(dlsym(handle, "InspectiveC_unwatchSelectorOnObject"));
 
-watchClass = classFunc(dlsym(handle, "InspectiveC_watchInstancesOfClass"));
-unwatchClass = classFunc(dlsym(handle, "InspectiveC_unwatchInstancesOfClass"));
-watchSelectorOnClass = classSelFunc(dlsym(handle, "InspectiveC_watchSelectorOnInstancesOfClass"));
-unwatchSelectorOnClass = classSelFunc(dlsym(handle, "InspectiveC_unwatchSelectorOnInstancesOfClass"));
+var watchClass = classFunc(dlsym(handle, "InspectiveC_watchInstancesOfClass"));
+var unwatchClass = classFunc(dlsym(handle, "InspectiveC_unwatchInstancesOfClass"));
+var watchSelectorOnClass = classSelFunc(dlsym(handle, "InspectiveC_watchSelectorOnInstancesOfClass"));
+var unwatchSelectorOnClass = classSelFunc(dlsym(handle, "InspectiveC_unwatchSelectorOnInstancesOfClass"));
 
-watchSelector = selFunc(dlsym(handle, "InspectiveC_watchSelector"));
-unwatchSelector = selFunc(dlsym(handle, "InspectiveC_unwatchSelector"));
+var watchSelector = selFunc(dlsym(handle, "InspectiveC_watchSelector"));
+var unwatchSelector = selFunc(dlsym(handle, "InspectiveC_unwatchSelector"));
 
-enableLogging = voidFunc(dlsym(handle, "InspectiveC_enableLogging"));
-disableLogging = voidFunc(dlsym(handle, "InspectiveC_disableLogging"));
+var enableLogging = voidFunc(dlsym(handle, "InspectiveC_enableLogging"));
+var disableLogging = voidFunc(dlsym(handle, "InspectiveC_disableLogging"));
 
-enableCompleteLogging = voidFunc(dlsym(handle, "InspectiveC_enableCompleteLogging"));
-disableCompleteLogging = voidFunc(dlsym(handle, "InspectiveC_disableCompleteLogging"));
+var enableCompleteLogging = voidFunc(dlsym(handle, "InspectiveC_enableCompleteLogging"));
+var disableCompleteLogging = voidFunc(dlsym(handle, "InspectiveC_disableCompleteLogging"));
