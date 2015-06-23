@@ -77,7 +77,7 @@ $THEOS/lib and then copy **InspectiveC.h** into $THEOS/include.
 **Option 0: Use InspectiveC with Cycript for maximum efficiency**
 
 Use Cycript to inject into a process, then paste a single line to load InspectiveC. The command is a
-compiled version of the InspectiveC.cy file - found in this repo in InspectiveC.compiled.cy.
+compiled version of the InspectiveC.cy file - found in this repo in cycript/InspectiveC.compiled.cy.
 
 Be sure to install **Cycript on Cydia** and replace "SpringBoard" in the first command with the name
 of the process that you want to inject into. Also, don't forget to **respring/kill the app** when
