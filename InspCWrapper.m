@@ -36,6 +36,8 @@ static inspectiveC_voidFuncT $disableLogging;
 static inspectiveC_voidFuncT $enableCompleteLogging;
 static inspectiveC_voidFuncT $disableCompleteLogging;
 
+static inspectiveC_voidFuncT $flushLogFile;
+
 static void * inspectiveC_loadFunctionNamed(const char *name) {
   void *func = dlsym(inspectiveC_Handle, name);
   if (!func) {
@@ -70,6 +72,8 @@ static void inspectiveC_init() {
 
         $enableCompleteLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_enableCompleteLogging");
         $disableCompleteLogging = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_disableCompleteLogging");
+
+        $flushLogFile = (inspectiveC_voidFuncT)inspectiveC_loadFunctionNamed("InspectiveC_flushLogFile");
       } else {
         NSLog(@"[InspectiveC Wrapper] Unable to load libinspectivec! Error: %s", dlerror());
       }
@@ -165,10 +169,16 @@ void enableCompleteLogging() {
     $enableCompleteLogging();
   }
 }
-
 void disableCompleteLogging() {
   inspectiveC_init();
   if ($disableCompleteLogging) {
     $disableCompleteLogging();
+  }
+}
+
+void flushLogFile() {
+  inspectiveC_init();
+  if ($flushLogFile) {
+    $flushLogFile();
   }
 }

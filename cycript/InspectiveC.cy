@@ -28,3 +28,5 @@ var disableLogging = voidFunc(dlsym(handle, "InspectiveC_disableLogging"));
 
 var enableCompleteLogging = voidFunc(dlsym(handle, "InspectiveC_enableCompleteLogging"));
 var disableCompleteLogging = voidFunc(dlsym(handle, "InspectiveC_disableCompleteLogging"));
+
+var flushLogFile = voidFunc(dlsym(handle, "InspectiveC_flushLogFile"));

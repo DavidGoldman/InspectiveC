@@ -44,6 +44,10 @@ void InspectiveC_disableLogging();
 void InspectiveC_enableCompleteLogging();
 void InspectiveC_disableCompleteLogging();
 
+
+// Flushes the log file for the current thread.
+void InspectiveC_flushLogFile();
+
 #if __cplusplus
 }
 #endif

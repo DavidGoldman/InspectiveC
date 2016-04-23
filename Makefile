@@ -1,5 +1,5 @@
 ARCHS = armv7 arm64
-TARGET = iphone:8.2:8.2
+TARGET = iphone:9.2:9.2
 ADDITIONAL_OBJCFLAGS = -fobjc-exceptions
 # ADDITIONAL_OBJCFLAGS += -S
 

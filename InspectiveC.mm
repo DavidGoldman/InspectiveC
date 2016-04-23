@@ -281,6 +281,15 @@ extern "C" int InspectiveC_isLoggingEnabled() {
   return (int)cs->isLoggingEnabled;
 }
 
+
+extern "C" void InspectiveC_flushLogFile() {
+  ThreadCallStack *cs = getThreadCallStack();
+  FILE *logFile = cs->file;
+  if (logFile) {
+    fflush(logFile);
+  }
+}
+
 // Shared functions.
 extern "C" char ***_NSGetArgv(void);
 
@@ -571,7 +580,12 @@ MSInitialize {
   NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
   NSString *path = [paths firstObject];
   directory = [path UTF8String];
+
+#ifdef MAIN_THREAD_ONLY
   NSLog(@"[InspectiveC] Loading - Directory is \"%s\"", directory);
+#else
+  NSLog(@"[InspectiveC] Multithreaded; Loading - Directory is \"%s\"", directory);
+#endif
 
   NSMapTable_Class = [objc_getClass("NSMapTable") class];
   NSHashTable_Class = [objc_getClass("NSHashTable") class];
