@@ -2,7 +2,7 @@ var intFunc = @encode(void(int));
 var objFunc = @encode(void(id));
 var classFunc = @encode(void(Class));
 var selFunc = @encode(void(SEL));
-var voidFunc = @encode(void(void));
+var voidFunc = @encode(void());
 var objSelFunc = @encode(void(id, SEL));
 var classSelFunc = @encode(void(Class, SEL));
 
