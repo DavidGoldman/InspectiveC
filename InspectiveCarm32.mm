@@ -13,7 +13,7 @@ uintptr_t preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, va_list args) {
   return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
 }
 
-// Our replacement objc_msgSeng for arm32.
+// Our replacement objc_msgSend for arm32.
 __attribute__((__naked__))
 static void replacementObjc_msgSend() {
   __asm__ volatile (
