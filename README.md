@@ -1,7 +1,7 @@
 InspectiveC
 ======
 
-*MobileSubstrate based objc_msgSend hook for debugging/inspection purposes.*
+*MobileSubstrate and Fishhook based objc_msgSend hook for debugging/inspection purposes.*
 
 Based on [itrace by emeau](https://github.com/emeau/itrace), [AspectiveC by saurik](http://svn.saurik.com/repos/menes/trunk/aspectivec/AspectiveC.mm), and [Subjective-C by kennytm](http://networkpx.blogspot.com/2009/09/introducing-subjective-c.html).
 
@@ -16,6 +16,10 @@ watch specific objects, all objects of a given class, and specific selectors. It
 compatible with arm64 - in fact, it is more full-featured on arm64 as arm32 has obj_msgSend[st|fp]ret
 which are currently not hooked.
 
+Note that due to limitations with MobileSubstrate on iOS 10 and 11, you must use Fishhook to
+interpose objc_msgSend instead. To do this, build with `USE_FISHHOOK=1`, i.e.
+`make package USE_FISHHOOK=1 FOR_RELEASE=1 install`.
+
 **Features:**
 * arm64 support (and arm32)
 * Watch specific objects
@@ -27,7 +31,6 @@ which are currently not hooked.
 * Support logging blocks/replaced C functions
 * Print retvals
 * Optimizations
-  * Nicer hooking (i.e. remove getOrigObjc_msgSend)
   * Better multithreading performance
 
 **Example Output:**
@@ -135,7 +138,7 @@ void unwatchSelectorOnObject(id obj, SEL _cmd);
 void watchClass(Class clazz);
 void unwatchClass(Class clazz);
 
-// Watches/unwatches the specified selector on instances of the specified class ONLY - will not 
+// Watches/unwatches the specified selector on instances of the specified class ONLY - will not
 // watch subclass instances.
 void watchSelectorOnClass(Class clazz, SEL _cmd);
 void unwatchSelectorOnClass(Class clazz, SEL _cmd);
@@ -151,7 +154,7 @@ void disableLogging();
 
 // Enables/disables logging every message for the current thread.
 void enableCompleteLogging();
-void disableCompleteLogging(); 
+void disableCompleteLogging();
 ```
 
 
@@ -188,7 +191,7 @@ void InspectiveC_unwatchSelectorOnObject(id obj, SEL _cmd);
 void InspectiveC_watchInstancesOfClass(Class clazz);
 void InspectiveC_unwatchInstancesOfClass(Class clazz);
 
-// Watches/unwatches the specified selector on instances of the specified class ONLY - will not 
+// Watches/unwatches the specified selector on instances of the specified class ONLY - will not
 // watch subclass instances.
 void InspectiveC_watchSelectorOnInstancesOfClass(Class clazz, SEL _cmd);
 void InspectiveC_unwatchSelectorOnInstancesOfClass(Class clazz, SEL _cmd);

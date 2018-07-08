@@ -59,7 +59,7 @@ static void performBlockOnProperThread(void (^block)(void)) {
 #endif
 
 // The original objc_msgSend.
-static id (*orig_objc_msgSend)(id, SEL, ...);
+extern "C" id (*orig_objc_msgSend)(id, SEL, ...) = NULL;
 
 // These classes support handling of void *s using callback functions, yet their methods
 // accept (fake) ids. =/ i.e. objectForKey: and setObject:forKey: are dangerous for us because what
@@ -440,13 +440,6 @@ static inline void logWithArgs(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd
   }
 }
 
-// Returns orig_objc_msgSend in r0. Sadly I couldn't figure out a way to "blx orig_objc_msgSend"
-// and moving this directly inside the replacementObjc_msgSend method generates assembly that
-// overrides r0 before can we push it... without this you're gonna have a bad time. 
-uintptr_t getOrigObjc_msgSend() {
-  return reinterpret_cast<uintptr_t>(orig_objc_msgSend);
-}
-
 static inline void logWatchedHit(ThreadCallStack *cs, FILE *file, id obj, SEL _cmd, char *spaces, arg_list &args) {
   Class kind = object_getClass(obj);
   BOOL isMetaClass = class_isMetaClass(kind);
@@ -503,7 +496,7 @@ static inline void onWatchHit(ThreadCallStack *cs, arg_list &args) {
 static inline void onNestedCall(ThreadCallStack *cs, arg_list &args) {
   const int curIndex = cs->index;
   FILE *logFile = cs->file;
-  if (logFile && 
+  if (logFile &&
      (cs->isCompleteLoggingEnabled || (curIndex - cs->lastHitIndex) <= maxRelativeRecursiveDepth)) {
 
     // Log the current call.
@@ -522,7 +515,7 @@ static inline BOOL selectorSetContainsSelector(HashMapRef selectorSet, SEL _cmd)
   if (selectorSet == NULL) {
     return NO;
   }
-  return HMGet(selectorSet, WATCH_ALL_SELECTORS_SELECTOR) != NULL || 
+  return HMGet(selectorSet, WATCH_ALL_SELECTORS_SELECTOR) != NULL ||
       HMGet(selectorSet, _cmd) != NULL;
 }
 
@@ -574,6 +567,18 @@ uintptr_t postObjc_msgSend() {
 #include "InspectiveCarm32.mm"
 #endif
 
+#if USE_FISHHOOK
+#include "fishhook/fishhook.h"
+
+static void hook() {
+  rebind_symbols((struct rebinding[1]){{"objc_msgSend", (void *)replacementObjc_msgSend, (void **)&orig_objc_msgSend}}, 1);
+}
+#else
+static void hook() {
+  MSHookFunction(&objc_msgSend, (id (*)(id, SEL, ...))&replacementObjc_msgSend, &orig_objc_msgSend);
+}
+#endif
+
 MSInitialize {
   pthread_key_create(&threadKey, &destroyThreadCallStack);
 
@@ -594,5 +599,5 @@ MSInitialize {
   classMap = HMCreate(&pointerEquality, &pointerHash);
   selsSet = HMCreate(&pointerEquality, &pointerHash);
 
-  MSHookFunction(&objc_msgSend, (id (*)(id, SEL, ...))&replacementObjc_msgSend, &orig_objc_msgSend);
+  hook();
 }

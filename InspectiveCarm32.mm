@@ -44,7 +44,7 @@ static void replacementObjc_msgSend() {
   // Pass through to original objc_msgSend.
       "Lpassthrough:\n"
       "push {r0, lr}\n"
-      "blx __Z19getOrigObjc_msgSendv\n"
+      "blx _orig_objc_msgSend\n"
       "mov r12, r0\n"
       "pop {r0, lr}\n"
       "bx r12"
