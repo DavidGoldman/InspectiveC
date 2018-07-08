@@ -59,7 +59,7 @@ static void performBlockOnProperThread(void (^block)(void)) {
 #endif
 
 // The original objc_msgSend.
-extern "C" id (*orig_objc_msgSend)(id, SEL, ...) = NULL;
+static id (*orig_objc_msgSend)(id, SEL, ...) = NULL;
 
 // These classes support handling of void *s using callback functions, yet their methods
 // accept (fake) ids. =/ i.e. objectForKey: and setObject:forKey: are dangerous for us because what
