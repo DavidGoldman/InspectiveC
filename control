@@ -3,7 +3,7 @@ Name: InspectiveC
 Depends: mobilesubstrate (>= 0.9.5.000)
 Conflicts: com.golddavid.inspectivec-multithreaded
 Replaces: com.golddavid.inspectivec-multithreaded
-Version: 1.1.0
+Version: 1.2.0
 Architecture: iphoneos-arm
 Description: objc_msgSend hook for debugging/inspection purposes.
 Depiction: http://apt.golddavid.com/depictions/InspectiveC.html

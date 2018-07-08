@@ -7,3 +7,5 @@ obj/
 _/
 
 /*.deb
+
+packages/
