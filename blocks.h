@@ -1,6 +1,8 @@
 #ifndef BLOCKS_H
 #define BLOCKS_H
 
+#include <stdio.h>
+
 enum {
   BLOCK_HAS_COPY_DISPOSE = (1 << 25),
   BLOCK_HAS_CTOR = (1 << 26), // Helpers have C++ code.

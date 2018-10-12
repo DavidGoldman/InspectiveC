@@ -8,6 +8,9 @@
 
 #include <pthread.h>
 
+#include <objc/runtime.h>
+#include <objc/message.h>
+
 #include "hashmap.h"
 #include "logging.h"
 

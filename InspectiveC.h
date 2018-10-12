@@ -26,7 +26,7 @@ void InspectiveC_unwatchSelectorOnObject(id obj, SEL _cmd);
 void InspectiveC_watchInstancesOfClass(Class clazz);
 void InspectiveC_unwatchInstancesOfClass(Class clazz);
 
-// Watches/unwatches the specified selector on instances of the specified class ONLY - will not 
+// Watches/unwatches the specified selector on instances of the specified class ONLY - will not
 // watch subclass instances.
 void InspectiveC_watchSelectorOnInstancesOfClass(Class clazz, SEL _cmd);
 void InspectiveC_unwatchSelectorOnInstancesOfClass(Class clazz, SEL _cmd);

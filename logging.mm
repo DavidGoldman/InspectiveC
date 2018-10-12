@@ -1,6 +1,8 @@
 #include "logging.h"
 
 #include <objc/runtime.h>
+#include <CoreGraphics/CGAffineTransform.h>
+#include <UIKit/UIGeometry.h>
 
 #include "blocks.h"
 
