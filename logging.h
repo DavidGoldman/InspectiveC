@@ -2,7 +2,7 @@
 #define LOGGING_H
 
 #import <Foundation/Foundation.h>
-#include <cstdio>
+#include <stdio.h>
 
 #ifdef __arm64__
 #define arg_list pa_list

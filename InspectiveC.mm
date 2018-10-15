@@ -1,7 +1,7 @@
 #include <Foundation/Foundation.h>
 
-#include <cstdarg>
-#include <cstdio>
+#include <stdarg.h>
+#include <stdio.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>

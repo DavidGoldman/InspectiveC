@@ -5,16 +5,18 @@ ADDITIONAL_OBJCFLAGS = -fobjc-exceptions
 
 LIBRARY_NAME = libinspectivec
 libinspectivec_FILES = hashmap.mm logging.mm blocks.mm InspectiveC.mm
-ifeq ($(USE_FISHHOOK),1)
+ifeq ($(call __theos_bool,$(USE_FISHHOOK)),$(_THEOS_TRUE))
 	libinspectivec_FILES += fishhook/fishhook.c
 	libinspectivec_CFLAGS = -DUSE_FISHHOOK=1
+else
+	libinspectivec_LIBRARIES = substrate
 endif
 
-libinspectivec_LIBRARIES = substrate
 libinspectivec_FRAMEWORKS = Foundation UIKit
+# If building to embed within an Xcode app
+# libinspectivec_INSTALL_PATH = @rpath
 
 include $(THEOS)/makefiles/common.mk
-include $(THEOS_MAKE_PATH)/tweak.mk
 include $(THEOS_MAKE_PATH)/library.mk
 
 after-install::

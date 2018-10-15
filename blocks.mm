@@ -1,7 +1,7 @@
 #include "blocks.h"
 
 #include <objc/runtime.h>
-#include <Foundation/NSMethodSignature.h>
+#import <Foundation/NSMethodSignature.h>
 
 // Thanks to CTObjectiveCRuntimeAdditions (https://github.com/ebf/CTObjectiveCRuntimeAdditions).
 // See http://clang.llvm.org/docs/Block-ABI-Apple.html.
