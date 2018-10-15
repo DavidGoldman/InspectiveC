@@ -4,6 +4,7 @@
   using this method instead.
  */
 #include <dlfcn.h>
+#include <stddef.h>
 
 typedef void (*inspectiveC_IntFuncT)(int depth);
 typedef void (*inspectiveC_ObjectFuncT)(id obj);

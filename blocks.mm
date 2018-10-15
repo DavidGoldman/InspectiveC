@@ -1,6 +1,7 @@
 #include "blocks.h"
 
 #include <objc/runtime.h>
+#import <Foundation/NSMethodSignature.h>
 
 // Thanks to CTObjectiveCRuntimeAdditions (https://github.com/ebf/CTObjectiveCRuntimeAdditions).
 // See http://clang.llvm.org/docs/Block-ABI-Apple.html.
@@ -26,7 +27,7 @@ void logBlock(FILE *file, id block) {
   if (signature) {
     NSMethodSignature *methodSignature = [NSMethodSignature signatureWithObjCTypes:signature];
     Class kind = object_getClass(block);
-    fprintf(file, "<%s@%p signature=\"%s ; retType=%s", class_getName(kind), (void *)block, signature, methodSignature.methodReturnType);
+    fprintf(file, "<%s@%p signature=\"%s ; retType=%s", class_getName(kind), (__bridge void *)block, signature, methodSignature.methodReturnType);
 
     // Skip the first argument (self).
     NSUInteger numOfArgs = methodSignature.numberOfArguments;
@@ -36,6 +37,6 @@ void logBlock(FILE *file, id block) {
     fprintf(file, "\">");
   } else {
     Class kind = object_getClass(block);
-    fprintf(file, "<%s@%p>", class_getName(kind), (void *)block);
+    fprintf(file, "<%s@%p>", class_getName(kind), (__bridge void *)block);
   }
 }

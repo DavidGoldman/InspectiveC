@@ -4,6 +4,10 @@
 #include <stddef.h>
 #import <Foundation/Foundation.h>
 
+#if __cplusplus
+extern "C" {
+#endif
+
 // Equality function used in hashmap to test for equality - returns nonzero if equal.
 typedef int (*EqualityFuncT)(void *, void *);
 
@@ -69,5 +73,9 @@ void HMIterateWithArg(HashMapRef hashMap, void *arg, void (*functionWithExtraArg
 
 // Prints some HashMap stats.
 void HMPrintStats(HashMapRef hashMap);
+
+#if __cplusplus
+}
+#endif
 
 #endif

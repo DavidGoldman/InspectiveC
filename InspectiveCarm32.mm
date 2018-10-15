@@ -51,4 +51,3 @@ static void replacementObjc_msgSend() {
       "bx r12\n"
     );
 }
-

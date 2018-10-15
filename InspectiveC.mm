@@ -1,13 +1,15 @@
-#include <substrate.h>
 #include <Foundation/Foundation.h>
 
-#include <cstdarg>
-#include <cstdio>
+#include <stdarg.h>
+#include <stdio.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include <pthread.h>
+
+#include <objc/runtime.h>
+#include <objc/message.h>
 
 #include "hashmap.h"
 #include "logging.h"
@@ -574,16 +576,19 @@ static void hook() {
   rebind_symbols((struct rebinding[1]){{"objc_msgSend", (void *)replacementObjc_msgSend, (void **)&orig_objc_msgSend}}, 1);
 }
 #else
+#include <substrate.h>
+
 static void hook() {
   MSHookFunction(&objc_msgSend, (id (*)(id, SEL, ...))&replacementObjc_msgSend, &orig_objc_msgSend);
 }
 #endif
 
-MSInitialize {
+__attribute__((constructor))
+static void localConstructor() {
   pthread_key_create(&threadKey, &destroyThreadCallStack);
 
   NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-  NSString *path = [paths firstObject];
+  NSString *path = (paths.count > 0) ? [paths objectAtIndex:0] : nil;
   directory = [path UTF8String];
 
 #ifdef MAIN_THREAD_ONLY
