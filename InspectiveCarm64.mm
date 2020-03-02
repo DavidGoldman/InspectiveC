@@ -1,7 +1,7 @@
 
-struct PointerAndInt_ {
-  uintptr_t ptr;
-  int i;
+struct ObjcMsgSendAndEnabled {
+  uintptr_t msgSendPtr;
+  uintptr_t enabled;
 };
 
 // arm64 hooking magic.
@@ -9,17 +9,17 @@ struct PointerAndInt_ {
 // Called in our replacementObjc_msgSend before calling the original objc_msgSend.
 // This pushes a CallRecord to our stack, most importantly saving the lr.
 // Returns orig_objc_msgSend in x0 and isLoggingEnabled in x1.
-struct PointerAndInt_ preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, struct RegState_ *rs) {
+struct ObjcMsgSendAndEnabled preObjc_msgSend(id self, uintptr_t lr, SEL _cmd, struct RegState_ *rs) {
   ThreadCallStack *cs = getThreadCallStack();
   if (!cs->isLoggingEnabled) { // Not enabled, just return.
-    return (struct PointerAndInt_) {reinterpret_cast<uintptr_t>(orig_objc_msgSend), 0};
+    return (struct ObjcMsgSendAndEnabled) {reinterpret_cast<uintptr_t>(orig_objc_msgSend), 0};
   }
   pushCallRecord(self, lr, _cmd, cs);
   pa_list args = (pa_list){ rs, ((unsigned char *)rs) + 208, 2, 0 }; // 208 is the offset of rs from the top of the stack.
 
   preObjc_msgSend_common(self, lr, _cmd, cs, args);
 
-  return (struct PointerAndInt_) {reinterpret_cast<uintptr_t>(orig_objc_msgSend), 1};
+  return (struct ObjcMsgSendAndEnabled) {reinterpret_cast<uintptr_t>(orig_objc_msgSend), 1};
 }
 
 // Our replacement objc_msgSend (arm64).
