@@ -7,7 +7,7 @@ Based on [itrace by emeau](https://github.com/emeau/itrace), [AspectiveC by saur
 
 Logs output to **/var/mobile/Documents/InspectiveC** or **/var/mobile/Containers/Data/Application/\<App-Hex\>/Documents/InspectiveC** (sandbox). Inside the InspectiveC folder, you'll find **\<exe\>/\<pid\>_\<tid\>.log**.
 
-**You can download the deb from the stable_debs folder or from my [repo](http://apt.golddavid.com/).**
+**You can download the deb from the stable_debs folder or from my [repo](https://apt.dgoldman.dev).**
 
 **Description:**
 
@@ -69,7 +69,7 @@ interpose objc_msgSend instead. To do this, build with `USE_FISHHOOK=1`, i.e.
 
 **Usage:**
 
-Properly [install theos](http://iphonedevwiki.net/index.php/Theos/Setup) and grab yourself a copy
+Properly [install theos](https://github.com/theos/theos/wiki/Installation) and grab yourself a copy
 of the iOS SDK. You may have to modify the Makefile (i.e. ARCHS or TARGET) and/or InspectiveC.mm. I
 compile this on my Mac with Clang - if you use anything different you may have some issues with the
 assembly code.
